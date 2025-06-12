@@ -31,7 +31,7 @@ const Index = () => {
               <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">Features</a>
               <a href="#pricing" className="text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
               <a href="#contact" className="text-muted-foreground hover:text-foreground transition-colors">Contact</a>
-              <Link href="/dashboard">
+              <Link href="/sign-in">
                 <Button variant="outline" size="sm">Sign In</Button>
               </Link>
               <Link href="/dashboard">
