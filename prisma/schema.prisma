@@ -14,6 +14,17 @@ datasource db {
 }
 
 
+enum ExecutionStatus {
+  SUCCESS
+  FAILURE
+}
+
+
+enum FlowStatus {
+  ACTIVE
+  PAUSED
+  DRAFT
+}
 
 model User {
   id            String    @id
@@ -26,6 +37,7 @@ model User {
   clerkId       String    @unique
   flows         Flow[]
   organizations OrganizationMember[]
+  executions    WorkflowExecution[] // New: reverse lookup
 }
 
 model Organization {
@@ -55,7 +67,12 @@ model Flow {
   id             String       @id @default(cuid())
   name           String
   description    String?
-  data           Json
+  data           Json         // LangGraph structure
+  status         FlowStatus   @default(ACTIVE)
+  successRate    Float        @default(100.0)
+  executions     Int          @default(0)
+  failures       Int          @default(0)
+  lastRunAt      DateTime?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   user           User         @relation(fields: [userId], references: [id])
@@ -63,4 +80,24 @@ model Flow {
   organization   Organization @relation(fields: [organizationId], references: [id])
   organizationId String
   isPublic       Boolean      @default(false)
+  testData       Json?        // Optional input to test
+  executionsLog  WorkflowExecution[]
 }
+
+
+model WorkflowExecution {
+  id          String   @id @default(cuid())
+  status      ExecutionStatus
+  executedAt  DateTime @default(now())
+  durationMs  Int?
+  inputData   Json?
+  outputData  Json?
+  error       String?
+
+  flow        Flow     @relation(fields: [flowId], references: [id])
+  flowId      String
+
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String
+}
+
