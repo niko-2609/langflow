@@ -5,14 +5,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { 
+import {
   // Activity, 
-  CheckCircle, 
-  XCircle, 
+  CheckCircle,
+  XCircle,
   // Clock, 
-  Plus, 
-  Workflow, 
-  TrendingUp, 
+  Plus,
+  Workflow,
+  TrendingUp,
   Users,
   // Zap,
   Calendar,
@@ -21,6 +21,7 @@ import {
   Pause
 } from "lucide-react"
 import Link from "next/link"
+import { SignedIn, SignedOut, SignInButton, SignOutButton, UserButton } from "@clerk/nextjs"
 
 // Define the type for our metrics
 type Metric = {
@@ -51,10 +52,10 @@ const iconMap = {
   Users
 } as const
 
-export function DashboardClient({ 
-  metrics, 
-  workflows 
-}: { 
+export function DashboardClient({
+  metrics,
+  workflows
+}: {
   metrics: Metric[]
   workflows: Workflow[]
 }) {
@@ -81,7 +82,12 @@ export function DashboardClient({
                 </Button>
               </Link>
               <Avatar>
-                <AvatarFallback>JD</AvatarFallback>
+                <AvatarFallback> <SignedIn>
+                  <UserButton />
+                </SignedIn>
+                  <SignedOut>
+                    <SignInButton />
+                  </SignedOut></AvatarFallback>
               </Avatar>
             </div>
           </div>
@@ -132,7 +138,7 @@ export function DashboardClient({
                 </Button>
               </Link>
             </div>
-            
+
             <div className="space-y-4">
               {workflows.map((workflow) => (
                 <Card key={workflow.id} className="hover-lift cursor-pointer">
@@ -150,7 +156,7 @@ export function DashboardClient({
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Badge 
+                        <Badge
                           variant={workflow.status === 'active' ? 'default' : 'secondary'}
                           className={workflow.status === 'active' ? 'bg-green-100 text-green-800 hover:bg-green-100' : ''}
                         >

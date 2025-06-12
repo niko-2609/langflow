@@ -1,14 +1,65 @@
 'use client'
 
 import { Button } from "@/components/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, Zap, Users, Shield, BarChart3, Workflow, Clock } from "lucide-react";
+import { ArrowRight, Zap, Users, Shield, BarChart3, Workflow, Clock, Star, Check } from "lucide-react";
 import Link from 'next/link'
  
 import { useState, useEffect } from "react";
 
 const Index = () => {
+
+  const pricingPlans = [
+    {
+      name: 'Starter',
+      price: 29,
+      description: 'Perfect for small teams getting started',
+      features: [
+        'Up to 5 team members',
+        'Basic analytics',
+        '10GB storage',
+        'Email support',
+        'Mobile app access',
+        'Basic integrations'
+      ],
+      popular: false,
+    },
+    {
+      name: 'Professional',
+      price: 79,
+      description: 'Ideal for growing businesses',
+      features: [
+        'Up to 25 team members',
+        'Advanced analytics',
+        '100GB storage',
+        'Priority support',
+        'Mobile app access',
+        'Advanced integrations',
+        'Custom workflows',
+        'API access'
+      ],
+      popular: true,
+    },
+    {
+      name: 'Enterprise',
+      price: 199,
+      description: 'For large organizations with complex needs',
+      features: [
+        'Unlimited team members',
+        'Enterprise analytics',
+        '1TB storage',
+        '24/7 dedicated support',
+        'Mobile app access',
+        'All integrations',
+        'Custom workflows',
+        'Full API access',
+        'SSO integration',
+        'Advanced security'
+      ],
+      popular: false,
+    },
+  ];
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -31,7 +82,7 @@ const Index = () => {
               <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">Features</a>
               <a href="#pricing" className="text-muted-foreground hover:text-foreground transition-colors">Pricing</a>
               <a href="#contact" className="text-muted-foreground hover:text-foreground transition-colors">Contact</a>
-              <Link href="/dashboard">
+              <Link href="/sign-in">
                 <Button variant="outline" size="sm">Sign In</Button>
               </Link>
               <Link href="/dashboard">
@@ -161,6 +212,106 @@ const Index = () => {
                 </CardDescription>
               </CardHeader>
             </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section className="py-20 px-4 bg-gray-50">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-black mb-4">Simple, Transparent Pricing</h2>
+            <p className="text-lg text-gray-600">No hidden fees. No surprises. Just honest pricing.</p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            {pricingPlans.map((plan, index) => (
+              <Card 
+                key={plan.name} 
+                className={`relative overflow-hidden transition-all duration-300 hover:shadow-xl ${
+                  plan.popular 
+                    ? 'border-2 scale-105 shadow-lg' 
+                    : 'border border-gray-200 hover:scale-105'
+                }`}
+                style={{
+                  borderColor: plan.popular ? '#e3406f' : undefined
+                }}
+              >
+                {plan.popular && (
+                  <div 
+                    className="absolute top-0 left-0 right-0 text-white text-center py-2 text-sm font-semibold"
+                    style={{ backgroundColor: '#e3406f' }}
+                  >
+                    <Star className="inline w-4 h-4 mr-1" />
+                    Most Popular
+                  </div>
+                )}
+                
+                <CardHeader className={plan.popular ? 'pt-12' : 'pt-6'}>
+                  <CardTitle className="text-2xl font-bold text-black">{plan.name}</CardTitle>
+                  <CardDescription className="text-gray-600">{plan.description}</CardDescription>
+                  <div className="mt-4">
+                    <span className="text-4xl font-bold text-black">${plan.price}</span>
+                    <span className="text-gray-600">/month</span>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="space-y-4">
+                  <ul className="space-y-3">
+                    {plan.features.map((feature, idx) => (
+                      <li key={idx} className="flex items-center">
+                        <Check 
+                          className="w-5 h-5 mr-3 flex-shrink-0" 
+                          style={{ color: '#e3406f' }}
+                        />
+                        <span className="text-gray-700">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  
+                  <Button 
+                    className={`w-full mt-6 font-semibold ${
+                      plan.popular 
+                        ? 'text-white' 
+                        : 'bg-white border-2 text-black hover:text-white'
+                    }`}
+                    style={{
+                      backgroundColor: plan.popular ? '#e3406f' : 'transparent',
+                      borderColor: '#e3406f',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!plan.popular) {
+                        e.currentTarget.style.backgroundColor = '#e3406f';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!plan.popular) {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }
+                    }}
+                  >
+                    Get Started
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <div className="text-center mt-12">
+            <p className="text-gray-600 mb-4">Need a custom solution?</p>
+            <Button 
+              variant="outline" 
+              className="border-2 text-black hover:text-white"
+              style={{ borderColor: '#e3406f' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#e3406f';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              Contact Sales
+            </Button>
           </div>
         </div>
       </section>

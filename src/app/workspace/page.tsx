@@ -20,10 +20,10 @@ import '@xyflow/react/dist/style.css';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { 
-  Workflow, 
-  Save, 
-  Play, 
+import {
+  Workflow,
+  Save,
+  Play,
   Plus,
   Mail,
   Database,
@@ -31,7 +31,9 @@ import {
   Calendar,
   MessageSquare,
   FileText,
-  Settings
+  Settings,
+  Menu,
+  X
 } from "lucide-react";
 import Link from 'next/link'
 
@@ -58,6 +60,7 @@ const initialEdges: Edge[] = [];
 const Workspace = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [nodeId, setNodeId] = useState(2);
 
   const onConnect = useCallback(
@@ -130,7 +133,31 @@ const Workspace = () => {
   return (
     <div className="h-screen flex bg-background">
       {/* Sidebar */}
-      <div className="w-80 border-r border-border bg-background flex flex-col">
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <div className={`
+        w-80 border-r border-border bg-background flex flex-col
+        fixed lg:relative inset-y-0 left-0 z-50
+        transform transition-transform duration-300 ease-in-out
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      `}>
+        {/* Mobile Close Button */}
+        <div className="lg:hidden flex justify-end p-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSidebarOpen(false)}
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
         {/* Header */}
         <div className="p-6 border-b border-border">
           <div className="flex items-center justify-between mb-4">
@@ -172,8 +199,8 @@ const Workspace = () => {
           <h3 className="font-semibold mb-4">Available Nodes</h3>
           <div className="space-y-3">
             {nodeTemplates.map((template, index) => (
-              <Card 
-                key={index} 
+              <Card
+                key={index}
                 className="cursor-pointer hover:shadow-md transition-all hover:scale-105 border-l-4"
                 style={{ borderLeftColor: template.color.replace('bg-', '#').replace('-500', '') }}
                 onClick={() => addNode(template)}
@@ -202,7 +229,17 @@ const Workspace = () => {
         <div className="absolute top-0 left-0 right-0 z-10 bg-background/95 backdrop-blur border-b border-border p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <h2 className="text-lg font-semibold">Untitled Workflow</h2>
+              {/* Mobile Menu Button */}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="lg:hidden"
+                onClick={() => setSidebarOpen(true)}
+              >
+                <Menu className="w-4 h-4" />
+              </Button>
+              <h2 className="text-lg font-semibold hidden sm:block">Untitled Workflow</h2>
+              <h2 className="text-base font-semibold sm:hidden">Workflow</h2>
               <Badge variant="secondary">Draft</Badge>
             </div>
             <div className="flex items-center space-x-3">
@@ -230,17 +267,22 @@ const Workspace = () => {
             fitView
             attributionPosition="bottom-left"
             className="bg-background"
+            // Mobile optimizations
+            minZoom={0.1}
+            maxZoom={2}
+            defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
           >
-            <Controls 
+            <Controls
               className="bg-background border border-border rounded-lg shadow-lg"
+              showInteractive={false}
             />
-            <MiniMap 
-              className="bg-background border border-border rounded-lg" 
+            <MiniMap
+              className="bg-background border border-border rounded-lg hidden md:block" 
               maskColor="rgb(240, 240, 240, 0.6)"
             />
-            <Background 
-              variant={BackgroundVariant.Dots} 
-              gap={20} 
+            <Background
+              variant={BackgroundVariant.Dots}
+              gap={20}
               size={1}
               color="#e5e7eb"
             />

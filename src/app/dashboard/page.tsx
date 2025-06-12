@@ -1,9 +1,28 @@
 // app/dashboard/page.tsx (Server Component)
 import { DashboardClient } from "@/components/features/dashboard/DashboardClient"
 
+type Metric = {
+  title: string
+  value: string
+  change: string
+  icon: 'Workflow' | 'CheckCircle' | 'XCircle' | 'Users'
+  color: string
+}
+
+type Workflow = {
+  id: number
+  name: string
+  description: string
+  status: 'active' | 'paused'
+  lastRun: string
+  successRate: number
+  executions: number
+  failures: number
+}
+
 export default async function DashboardPage() {
   // You can fetch data here if needed
-  const metrics = [
+  const metrics: Metric[] = [
     {
       title: "Total Workflows",
       value: "24",
@@ -34,7 +53,7 @@ export default async function DashboardPage() {
     }
   ]
 
-  const workflows = [
+  const workflows: Workflow[] = [
     {
       id: 1,
       name: "Customer Onboarding",
