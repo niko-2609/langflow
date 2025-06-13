@@ -1,7 +1,6 @@
-
 'use client'
 
-import { useCallback, useState } from 'react';
+import { Key, useCallback, useState, useEffect } from 'react';
 import {
   ReactFlow,
   addEdge,
@@ -14,6 +13,8 @@ import {
   Node,
   BackgroundVariant,
   MiniMap,
+  Node as FlowNode,
+  Edge as FlowEdge
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -25,17 +26,15 @@ import {
   Save,
   Play,
   Plus,
-  Mail,
-  Database,
-  Webhook,
-  Calendar,
-  MessageSquare,
-  FileText,
   Settings,
   Menu,
-  X
+  X,
+  Sparkles
 } from "lucide-react";
 import Link from 'next/link'
+import { useAvailableNodes } from '@/hooks/availableNodes';
+import { WorkflowNode } from '@/types/nodes';
+import { nodeIcons } from '@/lib/icons'
 
 // Custom node types
 const nodeTypes = {};
@@ -57,63 +56,86 @@ const initialNodes: Node[] = [
 
 const initialEdges: Edge[] = [];
 
+// Define types for workflow JSON
+interface WorkflowNodeJson {
+  id: string;
+  label: string;
+  type: string | undefined;
+  role: string;
+  position: { x: number; y: number };
+}
+interface WorkflowEdgeJson {
+  source: string;
+  target: string;
+}
+interface WorkflowJson {
+  nodes: WorkflowNodeJson[];
+  edges: WorkflowEdgeJson[];
+  selected: string[];
+}
+
 const Workspace = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [nodeId, setNodeId] = useState(2);
+  const [workflowJson, setWorkflowJson] = useState<WorkflowJson>({ nodes: [], edges: [], selected: [] });
+  const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
     [setEdges]
   );
 
-  const nodeTemplates = [
-    {
-      type: 'trigger',
-      label: 'Email Trigger',
-      icon: Mail,
-      color: 'bg-blue-500',
-      description: 'Triggers when new email received'
-    },
-    {
-      type: 'action',
-      label: 'Database',
-      icon: Database,
-      color: 'bg-green-500',
-      description: 'Read/write to database'
-    },
-    {
-      type: 'action',
-      label: 'Webhook',
-      icon: Webhook,
-      color: 'bg-purple-500',
-      description: 'Send HTTP requests'
-    },
-    {
-      type: 'action',
-      label: 'Schedule',
-      icon: Calendar,
-      color: 'bg-orange-500',
-      description: 'Time-based triggers'
-    },
-    {
-      type: 'action',
-      label: 'Slack',
-      icon: MessageSquare,
-      color: 'bg-pink-500',
-      description: 'Send Slack messages'
-    },
-    {
-      type: 'action',
-      label: 'File Processing',
-      icon: FileText,
-      color: 'bg-indigo-500',
-      description: 'Process files and documents'
-    },
-  ];
+  const { data, isLoading, error } = useAvailableNodes()
 
-  const addNode = (template: typeof nodeTemplates[0]) => {
+  if (isLoading) return <div>Loading nodes...</div>
+  if (error) return <div>Error loading nodes...</div>
+
+  // Helper to compute node roles
+  function computeNodeRoles(nodes: FlowNode[], edges: FlowEdge[]) {
+    const incoming: Record<string, number> = {};
+    const outgoing: Record<string, number> = {};
+    nodes.forEach((n) => { incoming[n.id] = 0; outgoing[n.id] = 0; });
+    edges.forEach((e) => {
+      incoming[e.target] = (incoming[e.target] || 0) + 1;
+      outgoing[e.source] = (outgoing[e.source] || 0) + 1;
+    });
+    return nodes.map((n) => {
+      if (incoming[n.id] === 0) return { ...n, role: 'start' };
+      if (outgoing[n.id] === 0) return { ...n, role: 'end' };
+      return { ...n, role: 'intermediate' };
+    });
+  }
+
+  // Update workflowJson whenever nodes, edges, or selection changes
+  useEffect(() => {
+    const nodesWithRoles = computeNodeRoles(nodes, edges).map(n => ({
+      id: n.id,
+      label: String(n.data?.label ?? ''),
+      type: n.type,
+      role: n.role,
+      position: n.position,
+    }));
+    setWorkflowJson({
+      nodes: nodesWithRoles,
+      edges: edges.map(e => ({ source: e.source, target: e.target })),
+      selected: selectedNodes,
+    });
+  }, [nodes, edges, selectedNodes]);
+
+  // Handler for selection change
+  const onSelectionChange = useCallback((params: { nodes: FlowNode[] }) => {
+    setSelectedNodes(params.nodes.map((n) => n.id));
+  }, []);
+
+  // Handler for node drag stop (optional, for real-time update)
+  const onNodeDragStop = useCallback(() => {
+    // Triggers useEffect to update JSON
+    setNodes(nodes => [...nodes]);
+  }, [setNodes]);
+
+  const addNode = (template: typeof data[0]) => {
     const newNode: Node = {
       id: nodeId.toString(),
       type: 'default',
@@ -195,10 +217,10 @@ const Workspace = () => {
         </div>
 
         {/* Node Templates */}
-        <div className="flex-1 p-6 overflow-y-auto">
+        {/* <div className="flex-1 p-6 overflow-y-auto">
           <h3 className="font-semibold mb-4">Available Nodes</h3>
           <div className="space-y-3">
-            {nodeTemplates.map((template, index) => (
+            {data.map((template: WorkflowNode, index) => (
               <Card
                 key={index}
                 className="cursor-pointer hover:shadow-md transition-all hover:scale-105 border-l-4"
@@ -219,6 +241,36 @@ const Workspace = () => {
                 </CardHeader>
               </Card>
             ))}
+          </div>
+        </div> */}
+
+        <div className="flex-1 p-6 overflow-y-auto">
+          <h3 className="font-semibold mb-4">Available Nodes</h3>
+          <div className="space-y-3">
+            {data.map((template: WorkflowNode, index: Key | null | undefined) => {
+              let Icon = nodeIcons[template.type] || Sparkles
+              return  (
+                <Card
+                  key={index}
+                  className="cursor-pointer hover:shadow-md transition-all hover:scale-105 rounded-md"
+                  style={{ borderLeft: `4px solid ${template.color}` }}
+                  onClick={() => addNode(template)}
+                >
+                  <CardHeader className="p-4">
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-8 h-8 ${template.color} rounded-lg flex items-center justify-center`}>
+                        <Icon className="w-4 h-4 text-white border-none" />
+                      </div>
+                      <div className="flex-1">
+                        <CardTitle className="text-sm">{template.label}</CardTitle>
+                        <p className="text-xs text-muted-foreground">{template.description}</p>
+                      </div>
+                      <Plus className="w-4 h-4 text-muted-foreground" />
+                    </div>
+                  </CardHeader>
+                </Card>
+              )
+            })}
           </div>
         </div>
       </div>
@@ -267,17 +319,18 @@ const Workspace = () => {
             fitView
             attributionPosition="bottom-left"
             className="bg-background"
-            // Mobile optimizations
             minZoom={0.1}
             maxZoom={2}
             defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
+            onSelectionChange={onSelectionChange}
+            onNodeDragStop={onNodeDragStop}
           >
             <Controls
               className="bg-background border border-border rounded-lg shadow-lg"
               showInteractive={false}
             />
             <MiniMap
-              className="bg-background border border-border rounded-lg hidden md:block" 
+              className="bg-background border border-border rounded-lg hidden md:block"
               maskColor="rgb(240, 240, 240, 0.6)"
             />
             <Background
@@ -305,6 +358,11 @@ const Workspace = () => {
             </Card>
           </div>
         )}
+
+        {/* Debug JSON output (optional) */}
+        <pre className="absolute bottom-4 right-4 bg-white/80 p-2 rounded text-xs max-w-md max-h-64 overflow-auto border border-gray-200 shadow-lg z-50">
+          {JSON.stringify(workflowJson, null, 2)}
+        </pre>
       </div>
     </div>
   );
