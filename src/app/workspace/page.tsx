@@ -1,7 +1,6 @@
-
 'use client'
 
-import { Key, useCallback, useState } from 'react';
+import { Key, useCallback, useState, useEffect } from 'react';
 import {
   ReactFlow,
   addEdge,
@@ -14,6 +13,8 @@ import {
   Node,
   BackgroundVariant,
   MiniMap,
+  Node as FlowNode,
+  Edge as FlowEdge
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -60,19 +61,86 @@ const Workspace = () => {
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [nodeId, setNodeId] = useState(2);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [saveForm, setSaveForm] = useState({ name: '', description: '', organizationId: '', isPublic: false });
+  const [isSaving, setIsSaving] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
+  const [workflowJson, setWorkflowJson] = useState<WorkflowJson>({ nodes: [], edges: [], selected: [] });
+  const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
+
+  // Define types for workflow JSON
+  interface WorkflowNodeJson {
+    id: string;
+    label: string;
+    type: string | undefined;
+    role: string;
+    position: { x: number; y: number };
+  }
+  interface WorkflowEdgeJson {
+    source: string;
+    target: string;
+  }
+  interface WorkflowJson {
+    nodes: WorkflowNodeJson[];
+    edges: WorkflowEdgeJson[];
+    selected: string[];
+  }
+
+  
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
     [setEdges]
   );
 
+  // Helper to compute node roles
+  function computeNodeRoles(nodes: Node[], edges: Edge[]) {
+    const incoming: Record<string, number> = {};
+    const outgoing: Record<string, number> = {};
+    nodes.forEach((n) => { incoming[n.id] = 0; outgoing[n.id] = 0; });
+    edges.forEach((e) => {
+      incoming[e.target] = (incoming[e.target] || 0) + 1;
+      outgoing[e.source] = (outgoing[e.source] || 0) + 1;
+    });
+    return nodes.map((n) => {
+      if (incoming[n.id] === 0) return { ...n, role: 'start' };
+      if (outgoing[n.id] === 0) return { ...n, role: 'end' };
+      return { ...n, role: 'intermediate' };
+    });
+  }
+
+  // Update workflowJson whenever nodes, edges, or selection changes
+  useEffect(() => {
+    const nodesWithRoles = computeNodeRoles(nodes, edges).map(n => ({
+      id: n.id,
+      label: String(n.data?.label ?? ''),
+      type: n.type,
+      role: n.role,
+      position: n.position,
+    }));
+    setWorkflowJson({
+      nodes: nodesWithRoles,
+      edges: edges.map(e => ({ source: e.source, target: e.target })),
+      selected: selectedNodes,
+    });
+  }, [nodes, edges, selectedNodes]);
+
+  // Handler for selection change
+  const onSelectionChange = useCallback((params: { nodes: FlowNode[] }) => {
+    setSelectedNodes(params.nodes.map((n) => n.id));
+  }, []);
+
+  // Handler for node drag stop (optional, for real-time update)
+  const onNodeDragStop = useCallback(() => {
+    // Triggers useEffect to update JSON
+    setNodes(nodes => [...nodes]);
+  }, [setNodes]);
 
   // Fetch nodes
   const { data, isLoading, error } = useAvailableNodes()
 
   if (isLoading) return <div>Loading nodes...</div>
   if (error) return <div>Error loading nodes...</div>
-
 
   const addNode = (template: typeof data[0]) => {
     const newNode: Node = {
@@ -90,6 +158,49 @@ const Workspace = () => {
     setNodes((nds) => nds.concat(newNode));
     setNodeId((id) => id + 1);
   };
+
+  // Save handler
+  async function handleSave() {
+    setIsSaving(true);
+    try {
+      const res = await fetch('/api/flows', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: saveForm.name,
+          description: saveForm.description,
+          organizationId: saveForm.organizationId,
+          isPublic: saveForm.isPublic,
+          data: workflowJson,
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      alert('Workflow saved!');
+      setShowSaveDialog(false);
+    } catch (e: any) {
+      alert('Save failed: ' + e.message);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  // Test Run handler
+  async function handleTestRun() {
+    setIsTesting(true);
+    try {
+      const res = await fetch('/api/flows/test-run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: workflowJson }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      alert('Test run sent!');
+    } catch (e: any) {
+      alert('Test run failed: ' + e.message);
+    } finally {
+      setIsTesting(false);
+    }
+  }
 
   return (
     <div className="h-screen flex bg-background">
@@ -141,11 +252,11 @@ const Workspace = () => {
 
         {/* Workflow Actions */}
         <div className="p-6 border-b border-border space-y-3">
-          <Button className="w-full justify-start">
+          <Button className="w-full justify-start" onClick={() => setShowSaveDialog(true)} disabled={isSaving}>
             <Save className="w-4 h-4 mr-2" />
             Save Workflow
           </Button>
-          <Button variant="outline" className="w-full justify-start">
+          <Button variant="outline" className="w-full justify-start" onClick={handleTestRun} disabled={isTesting}>
             <Play className="w-4 h-4 mr-2" />
             Test Run
           </Button>
@@ -214,9 +325,6 @@ const Workspace = () => {
         </div>
       </div>
 
-
-
-
       {/* Main Canvas */}
       <div className="flex-1 relative">
         {/* Canvas Header */}
@@ -261,10 +369,11 @@ const Workspace = () => {
             fitView
             attributionPosition="bottom-left"
             className="bg-background"
-            // Mobile optimizations
             minZoom={0.1}
             maxZoom={2}
             defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
+            onSelectionChange={onSelectionChange}
+            onNodeDragStop={onNodeDragStop}
           >
             <Controls
               className="bg-background border border-border rounded-lg shadow-lg"
@@ -299,7 +408,37 @@ const Workspace = () => {
             </Card>
           </div>
         )}
+
+        {/* Debug JSON output (optional) */}
+        <pre className="absolute bottom-4 right-4 bg-white/80 p-2 rounded text-xs max-w-md max-h-64 overflow-auto border border-gray-200 shadow-lg z-50">
+          {JSON.stringify(workflowJson, null, 2)}
+        </pre>
       </div>
+
+      {/* Save Dialog */}
+      {showSaveDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white p-6 rounded shadow-lg w-full max-w-md">
+            <h2 className="text-lg font-bold mb-4">Save Workflow</h2>
+            <label className="block mb-2">Name
+              <input className="w-full border p-2 rounded mb-2" value={saveForm.name} onChange={e => setSaveForm(f => ({ ...f, name: e.target.value }))} />
+            </label>
+            <label className="block mb-2">Description
+              <input className="w-full border p-2 rounded mb-2" value={saveForm.description} onChange={e => setSaveForm(f => ({ ...f, description: e.target.value }))} />
+            </label>
+            <label className="block mb-2">Organization ID
+              <input className="w-full border p-2 rounded mb-2" value={saveForm.organizationId} onChange={e => setSaveForm(f => ({ ...f, organizationId: e.target.value }))} />
+            </label>
+            <label className="block mb-2">Public?
+              <input type="checkbox" checked={saveForm.isPublic} onChange={e => setSaveForm(f => ({ ...f, isPublic: e.target.checked }))} />
+            </label>
+            <div className="flex gap-2 mt-4">
+              <Button onClick={handleSave} disabled={isSaving}>Save</Button>
+              <Button variant="outline" onClick={() => setShowSaveDialog(false)}>Cancel</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

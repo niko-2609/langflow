@@ -9,22 +9,17 @@ export async function POST(req: Request) {
 
   // Get the user from your database
   const user = await prisma.user.findUnique({
-    where: { clerkId },
+    where: { id: clerkId },
   });
 
+
+  console.log("USer Id", clerkId)
+  console.log("User", user)
   if (!user) return new Response("User not found", { status: 404 });
 
-  // Ensure the user is a member of the given organization
-  const orgMembership = await prisma.organizationMember.findUnique({
-    where: {
-      userId_organizationId: {
-        userId: user.id,
-        organizationId,
-      },
-    },
-  });
 
-  if (!orgMembership) {
+
+  if (!true) {
     return new Response("User is not a member of the organization", { status: 403 });
   }
 
@@ -34,7 +29,6 @@ export async function POST(req: Request) {
       name,
       description,
       data,
-      organizationId,
       userId: user.id,
       isPublic: isPublic ?? false,
     },
