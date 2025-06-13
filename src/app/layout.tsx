@@ -9,24 +9,24 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   ClerkProvider,
 } from '@clerk/nextjs'
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-// import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
+import { TanstackProvider } from "./providers";
+
 
 
 export default function RootLayout({ children }: { children: ReactNode }) {
 
-  const queryClient = new QueryClient();
+ 
   return (
     <html lang="en">
       <body>
         <ClerkProvider>
-        <QueryClientProvider client={queryClient}>
+        <TanstackProvider>
           <TooltipProvider>
             <Toaster />
             <Sonner />
             {children}
           </TooltipProvider>
-        </QueryClientProvider>
+          </TanstackProvider>
         </ClerkProvider>
       </body>
     </html>
