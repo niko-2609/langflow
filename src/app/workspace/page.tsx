@@ -1,6 +1,7 @@
+
 'use client'
 
-import { Key, useCallback, useState, useEffect } from 'react';
+import { Key, useCallback, useState } from 'react';
 import {
   ReactFlow,
   addEdge,
@@ -13,8 +14,6 @@ import {
   Node,
   BackgroundVariant,
   MiniMap,
-  Node as FlowNode,
-  Edge as FlowEdge
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
@@ -56,31 +55,11 @@ const initialNodes: Node[] = [
 
 const initialEdges: Edge[] = [];
 
-// Define types for workflow JSON
-interface WorkflowNodeJson {
-  id: string;
-  label: string;
-  type: string | undefined;
-  role: string;
-  position: { x: number; y: number };
-}
-interface WorkflowEdgeJson {
-  source: string;
-  target: string;
-}
-interface WorkflowJson {
-  nodes: WorkflowNodeJson[];
-  edges: WorkflowEdgeJson[];
-  selected: string[];
-}
-
 const Workspace = () => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [nodeId, setNodeId] = useState(2);
-  const [workflowJson, setWorkflowJson] = useState<WorkflowJson>({ nodes: [], edges: [], selected: [] });
-  const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -92,48 +71,52 @@ const Workspace = () => {
   if (isLoading) return <div>Loading nodes...</div>
   if (error) return <div>Error loading nodes...</div>
 
-  // Helper to compute node roles
-  function computeNodeRoles(nodes: FlowNode[], edges: FlowEdge[]) {
-    const incoming: Record<string, number> = {};
-    const outgoing: Record<string, number> = {};
-    nodes.forEach((n) => { incoming[n.id] = 0; outgoing[n.id] = 0; });
-    edges.forEach((e) => {
-      incoming[e.target] = (incoming[e.target] || 0) + 1;
-      outgoing[e.source] = (outgoing[e.source] || 0) + 1;
-    });
-    return nodes.map((n) => {
-      if (incoming[n.id] === 0) return { ...n, role: 'start' };
-      if (outgoing[n.id] === 0) return { ...n, role: 'end' };
-      return { ...n, role: 'intermediate' };
-    });
-  }
 
-  // Update workflowJson whenever nodes, edges, or selection changes
-  useEffect(() => {
-    const nodesWithRoles = computeNodeRoles(nodes, edges).map(n => ({
-      id: n.id,
-      label: String(n.data?.label ?? ''),
-      type: n.type,
-      role: n.role,
-      position: n.position,
-    }));
-    setWorkflowJson({
-      nodes: nodesWithRoles,
-      edges: edges.map(e => ({ source: e.source, target: e.target })),
-      selected: selectedNodes,
-    });
-  }, [nodes, edges, selectedNodes]);
 
-  // Handler for selection change
-  const onSelectionChange = useCallback((params: { nodes: FlowNode[] }) => {
-    setSelectedNodes(params.nodes.map((n) => n.id));
-  }, []);
-
-  // Handler for node drag stop (optional, for real-time update)
-  const onNodeDragStop = useCallback(() => {
-    // Triggers useEffect to update JSON
-    setNodes(nodes => [...nodes]);
-  }, [setNodes]);
+  // const nodeTemplates = [
+  //   {
+  //     type: 'trigger',
+  //     label: 'Email Trigger',
+  //     icon: Mail,
+  //     color: 'bg-blue-500',
+  //     description: 'Triggers when new email received'
+  //   },
+  //   {
+  //     type: 'action',
+  //     label: 'Database',
+  //     icon: Database,
+  //     color: 'bg-green-500',
+  //     description: 'Read/write to database'
+  //   },
+  //   {
+  //     type: 'action',
+  //     label: 'Webhook',
+  //     icon: Webhook,
+  //     color: 'bg-purple-500',
+  //     description: 'Send HTTP requests'
+  //   },
+  //   {
+  //     type: 'action',
+  //     label: 'Schedule',
+  //     icon: Calendar,
+  //     color: 'bg-orange-500',
+  //     description: 'Time-based triggers'
+  //   },
+  //   {
+  //     type: 'action',
+  //     label: 'Slack',
+  //     icon: MessageSquare,
+  //     color: 'bg-pink-500',
+  //     description: 'Send Slack messages'
+  //   },
+  //   {
+  //     type: 'action',
+  //     label: 'File Processing',
+  //     icon: FileText,
+  //     color: 'bg-indigo-500',
+  //     description: 'Process files and documents'
+  //   },
+  // ];
 
   const addNode = (template: typeof data[0]) => {
     const newNode: Node = {
@@ -275,6 +258,9 @@ const Workspace = () => {
         </div>
       </div>
 
+
+
+
       {/* Main Canvas */}
       <div className="flex-1 relative">
         {/* Canvas Header */}
@@ -319,11 +305,10 @@ const Workspace = () => {
             fitView
             attributionPosition="bottom-left"
             className="bg-background"
+            // Mobile optimizations
             minZoom={0.1}
             maxZoom={2}
             defaultViewport={{ x: 0, y: 0, zoom: 0.8 }}
-            onSelectionChange={onSelectionChange}
-            onNodeDragStop={onNodeDragStop}
           >
             <Controls
               className="bg-background border border-border rounded-lg shadow-lg"
@@ -358,11 +343,6 @@ const Workspace = () => {
             </Card>
           </div>
         )}
-
-        {/* Debug JSON output (optional) */}
-        <pre className="absolute bottom-4 right-4 bg-white/80 p-2 rounded text-xs max-w-md max-h-64 overflow-auto border border-gray-200 shadow-lg z-50">
-          {JSON.stringify(workflowJson, null, 2)}
-        </pre>
       </div>
     </div>
   );
