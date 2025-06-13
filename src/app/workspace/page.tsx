@@ -66,57 +66,13 @@ const Workspace = () => {
     [setEdges]
   );
 
+
+  // Fetch nodes
   const { data, isLoading, error } = useAvailableNodes()
 
   if (isLoading) return <div>Loading nodes...</div>
   if (error) return <div>Error loading nodes...</div>
 
-
-
-  // const nodeTemplates = [
-  //   {
-  //     type: 'trigger',
-  //     label: 'Email Trigger',
-  //     icon: Mail,
-  //     color: 'bg-blue-500',
-  //     description: 'Triggers when new email received'
-  //   },
-  //   {
-  //     type: 'action',
-  //     label: 'Database',
-  //     icon: Database,
-  //     color: 'bg-green-500',
-  //     description: 'Read/write to database'
-  //   },
-  //   {
-  //     type: 'action',
-  //     label: 'Webhook',
-  //     icon: Webhook,
-  //     color: 'bg-purple-500',
-  //     description: 'Send HTTP requests'
-  //   },
-  //   {
-  //     type: 'action',
-  //     label: 'Schedule',
-  //     icon: Calendar,
-  //     color: 'bg-orange-500',
-  //     description: 'Time-based triggers'
-  //   },
-  //   {
-  //     type: 'action',
-  //     label: 'Slack',
-  //     icon: MessageSquare,
-  //     color: 'bg-pink-500',
-  //     description: 'Send Slack messages'
-  //   },
-  //   {
-  //     type: 'action',
-  //     label: 'File Processing',
-  //     icon: FileText,
-  //     color: 'bg-indigo-500',
-  //     description: 'Process files and documents'
-  //   },
-  // ];
 
   const addNode = (template: typeof data[0]) => {
     const newNode: Node = {
