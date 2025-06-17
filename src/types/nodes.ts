@@ -6,8 +6,8 @@ export interface WorkflowNode {
     description: string;
     inputs: string[];
     outputs: string[];
-    icon: LucideIcon; // ✅ icon is a React component
     color: string;     // Tailwind color, e.g. "bg-blue-500"
+    nodeType: string;
   }
 
 
