@@ -1,6 +1,6 @@
 'use client'
 
-import { Key, useCallback, useState, useEffect } from 'react';
+import { Key, useCallback, useState, useEffect, useMemo } from 'react';
 import {
   ReactFlow,
   addEdge,
@@ -35,24 +35,15 @@ import Link from 'next/link'
 import { useAvailableNodes } from '@/hooks/availableNodes';
 import { WorkflowNode } from '@/types/nodes';
 import { nodeIcons } from '@/lib/icons'
+import { useToast } from '@/hooks/use-toast';
+import StartWorkflowForm from '@/components/features/workspace/StartWorkflow';
+import { WorkflowExecutionCard } from '@/components/features/workspace/WorkflowExecutionCard';
+import { CustomNode } from '@/components/features/workspace/CustomNode';
 
 // Custom node types
 const nodeTypes = {};
 
-const initialNodes: Node[] = [
-  {
-    id: '1',
-    type: 'input',
-    position: { x: 250, y: 25 },
-    data: { label: 'Start Trigger' },
-    style: {
-      background: '#e3406f',
-      color: 'white',
-      border: '1px solid #e3406f',
-      borderRadius: '8px',
-    },
-  },
-];
+const initialNodes: Node[] = [];
 
 const initialEdges: Edge[] = [];
 
@@ -68,13 +59,22 @@ const Workspace = () => {
   const [workflowJson, setWorkflowJson] = useState<WorkflowJson>({ nodes: [], edges: [], selected: [] });
   const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
 
+  // In your Workspace component
+  const [showStartForm, setShowStartForm] = useState(false);
+
+  // On your Test Run or Start Workflow button:
+  <Button onClick={() => setShowStartForm(true)}>Test Run</Button>
+
+  const { toast } = useToast();
+
   // Define types for workflow JSON
   interface WorkflowNodeJson {
     id: string;
     label: string;
     type: string | undefined;
-    role: string;
+    nodeType: 'start' | 'end' | 'intermediate' | 'router';
     position: { x: number; y: number };
+    routes?: string[]; // Only for router nodes
   }
   interface WorkflowEdgeJson {
     source: string;
@@ -86,40 +86,58 @@ const Workspace = () => {
     selected: string[];
   }
 
-  
+  const [showExecutionCard, setShowExecutionCard] = useState(false);
+  const [executionSteps, setExecutionSteps] = useState<{
+    id: string;
+    name: string;
+    status: 'pending' | 'running' | 'completed' | 'failed';
+  }[]>([]);
+  const [executionRunning, setExecutionRunning] = useState(false);
+  const [executionWorkflowName, setExecutionWorkflowName] = useState('Untitled Workflow');
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
     [setEdges]
   );
 
-  // Helper to compute node roles
-  function computeNodeRoles(nodes: Node[], edges: Edge[]) {
-    const incoming: Record<string, number> = {};
-    const outgoing: Record<string, number> = {};
-    nodes.forEach((n) => { incoming[n.id] = 0; outgoing[n.id] = 0; });
-    edges.forEach((e) => {
-      incoming[e.target] = (incoming[e.target] || 0) + 1;
-      outgoing[e.source] = (outgoing[e.source] || 0) + 1;
-    });
-    return nodes.map((n) => {
-      if (incoming[n.id] === 0) return { ...n, role: 'start' };
-      if (outgoing[n.id] === 0) return { ...n, role: 'end' };
-      return { ...n, role: 'intermediate' };
-    });
-  }
-
   // Update workflowJson whenever nodes, edges, or selection changes
   useEffect(() => {
-    const nodesWithRoles = computeNodeRoles(nodes, edges).map(n => ({
-      id: n.id,
-      label: String(n.data?.label ?? ''),
-      type: n.type,
-      role: n.role,
-      position: n.position,
-    }));
+    const incoming: Record<string, number> = {};
+    const outgoing: Record<string, string[]> = {};
+    nodes.forEach((n) => { incoming[n.id] = 0; outgoing[n.id] = []; });
+    edges.forEach((e) => {
+      incoming[e.target] = (incoming[e.target] || 0) + 1;
+      outgoing[e.source] = outgoing[e.source] || [];
+      outgoing[e.source].push(e.target);
+    });
+
+    const nodesWithTypes = nodes.map((n: any) => {
+      let nodeType: 'start' | 'end' | 'intermediate' | 'router' = 'intermediate';
+      if (n.type === 'router') nodeType = 'router';
+      else if (incoming[n.id] === 0) nodeType = 'start';
+      else if ((outgoing[n.id] || []).length === 0) nodeType = 'end';
+      // For router nodes, add routes
+      if (nodeType === 'router') {
+        return {
+          id: n.id,
+          label: String(n.data?.label ?? ''),
+          type: n.type,
+          nodeType,
+          routes: outgoing[n.id],
+          position: n.position,
+        };
+      }
+      return {
+        id: n.id,
+        label: String(n.data?.label ?? ''),
+        type: n.type,
+        nodeType,
+        position: n.position,
+      };
+    }).filter(Boolean);
+
     setWorkflowJson({
-      nodes: nodesWithRoles,
+      nodes: nodesWithTypes,
       edges: edges.map(e => ({ source: e.source, target: e.target })),
       selected: selectedNodes,
     });
@@ -145,14 +163,16 @@ const Workspace = () => {
   const addNode = (template: typeof data[0]) => {
     const newNode: Node = {
       id: nodeId.toString(),
-      type: 'default',
+      type: 'custom',
       position: { x: Math.random() * 400 + 100, y: Math.random() * 400 + 100 },
-      data: { label: template.label },
-      style: {
-        background: template.color.replace('bg-', '#').replace('-500', ''),
-        color: 'white',
-        border: `1px solid ${template.color.replace('bg-', '#').replace('-500', '')}`,
-        borderRadius: '8px',
+      data: {
+        label: template.label,
+        description: template.description,
+        inputs: template.inputs,
+        outputs: template.outputs,
+        color: template.color,
+        nodeType: template.nodeType,
+        type: template.type,
       },
     };
     setNodes((nds) => nds.concat(newNode));
@@ -175,10 +195,16 @@ const Workspace = () => {
         }),
       });
       if (!res.ok) throw new Error(await res.text());
-      alert('Workflow saved!');
+      toast({
+        title: 'Success!',
+        description: 'Your workflow was saved.',
+      })
       setShowSaveDialog(false);
     } catch (e: any) {
-      alert('Save failed: ' + e.message);
+      toast({
+        title: 'Failed',
+        description: 'Could not save workflow, please try again.',
+      })
     } finally {
       setIsSaving(false);
     }
@@ -187,20 +213,87 @@ const Workspace = () => {
   // Test Run handler
   async function handleTestRun() {
     setIsTesting(true);
+    setShowStartForm(true);
+  }
+
+  async function startTestRun() {
     try {
+      // Initialize execution steps based on workflow nodes
+      const workflowSteps = workflowJson.nodes.map((node, index) => ({
+        id: node.id,
+        name: node.label || `Step ${index + 1}`,
+        status: 'pending' as const
+      }));
+      
+      setExecutionSteps(workflowSteps);
+      setExecutionWorkflowName(saveForm.name || 'Untitled Workflow');
+      setExecutionRunning(true);
+      
+      // Close the start form modal
+      setShowStartForm(false);
+      setIsTesting(false);
+      
+      // Show the execution card
+      setShowExecutionCard(true);
+      
+      // Simulate workflow execution by updating steps progressively
+      const totalSteps = workflowSteps.length;
+      
+      for (let i = 0; i < totalSteps; i++) {
+        // Update current step to running
+        setExecutionSteps(prev => prev.map((step, index) => 
+          index === i ? { ...step, status: 'running' } : step
+        ));
+        
+        // Simulate step execution time
+        await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+        
+        // Update current step to completed
+        setExecutionSteps(prev => prev.map((step, index) => 
+          index === i ? { ...step, status: 'completed' } : step
+        ));
+      }
+      
+      // Make API call to actual test run endpoint
       const res = await fetch('/api/flows/test-run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data: workflowJson }),
       });
+      
       if (!res.ok) throw new Error(await res.text());
-      alert('Test run sent!');
+      
+      toast({
+        title: 'Success!',
+        description: 'Test run completed successfully.',
+      });
+      
+      setExecutionRunning(false);
+      
     } catch (e: any) {
-      alert('Test run failed: ' + e.message);
-    } finally {
-      setIsTesting(false);
+      // Mark current running step as failed
+      setExecutionSteps(prev => prev.map(step => 
+        step.status === 'running' ? { ...step, status: 'failed' } : step
+      ));
+      
+      toast({
+        title: 'Failed',
+        description: 'Could not complete test workflow.',
+      });
+      
+      setExecutionRunning(false);
     }
   }
+
+  const handleStopExecution = () => {
+    setExecutionRunning(false);
+    // Optionally update steps to show stopped/failed
+    setExecutionSteps(steps => steps.map(s =>
+      s.status === 'running' ? { ...s, status: 'failed' } : s
+    ));
+  };
+
+  const handleCloseExecution = () => setShowExecutionCard(false);
 
   return (
     <div className="h-screen flex bg-background">
@@ -250,6 +343,7 @@ const Workspace = () => {
           </div>
         </div>
 
+
         {/* Workflow Actions */}
         <div className="p-6 border-b border-border space-y-3">
           <Button className="w-full justify-start" onClick={() => setShowSaveDialog(true)} disabled={isSaving}>
@@ -266,40 +360,13 @@ const Workspace = () => {
           </Button>
         </div>
 
-        {/* Node Templates */}
-        {/* <div className="flex-1 p-6 overflow-y-auto">
-          <h3 className="font-semibold mb-4">Available Nodes</h3>
-          <div className="space-y-3">
-            {data.map((template: WorkflowNode, index) => (
-              <Card
-                key={index}
-                className="cursor-pointer hover:shadow-md transition-all hover:scale-105 border-l-4"
-                style={{ borderLeftColor: template.color.replace('bg-', '#').replace('-500', '') }}
-                onClick={() => addNode(template)}
-              >
-                <CardHeader className="p-4">
-                  <div className="flex items-center space-x-3">
-                    <div className={`w-8 h-8 ${template.color} rounded-lg flex items-center justify-center`}>
-                      <template.icon className="w-4 h-4 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <CardTitle className="text-sm">{template.label}</CardTitle>
-                      <p className="text-xs text-muted-foreground">{template.description}</p>
-                    </div>
-                    <Plus className="w-4 h-4 text-muted-foreground" />
-                  </div>
-                </CardHeader>
-              </Card>
-            ))}
-          </div>
-        </div> */}
 
         <div className="flex-1 p-6 overflow-y-auto">
           <h3 className="font-semibold mb-4">Available Nodes</h3>
           <div className="space-y-3">
             {data.map((template: WorkflowNode, index: Key | null | undefined) => {
               let Icon = nodeIcons[template.type] || Sparkles
-              return  (
+              return (
                 <Card
                   key={index}
                   className="cursor-pointer hover:shadow-md transition-all hover:scale-105 rounded-md"
@@ -353,7 +420,7 @@ const Workspace = () => {
                   Back to Dashboard
                 </Button>
               </Link>
-            </div>
+           </div>
           </div>
         </div>
 
@@ -379,21 +446,18 @@ const Workspace = () => {
               className="bg-background border border-border rounded-lg shadow-lg"
               showInteractive={false}
             />
-            <MiniMap
-              className="bg-background border border-border rounded-lg hidden md:block"
-              maskColor="rgb(240, 240, 240, 0.6)"
-            />
             <Background
               variant={BackgroundVariant.Dots}
               gap={20}
               size={1}
               color="#e5e7eb"
             />
+
           </ReactFlow>
         </div>
 
         {/* Instructions Overlay */}
-        {nodes.length === 1 && (
+        {nodes.length === 0 && (
           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
             <Card className="p-8 text-center max-w-md animate-fade-in">
               <CardContent className="space-y-4">
@@ -410,9 +474,9 @@ const Workspace = () => {
         )}
 
         {/* Debug JSON output (optional) */}
-        <pre className="absolute bottom-4 right-4 bg-white/80 p-2 rounded text-xs max-w-md max-h-64 overflow-auto border border-gray-200 shadow-lg z-50">
+        {/* <pre className="absolute bottom-4 right-4 bg-white/80 p-2 rounded text-xs max-w-md max-h-64 overflow-auto border border-gray-200 shadow-lg z-50">
           {JSON.stringify(workflowJson, null, 2)}
-        </pre>
+        </pre> */}
       </div>
 
       {/* Save Dialog */}
@@ -439,6 +503,28 @@ const Workspace = () => {
           </div>
         </div>
       )}
+
+      {/* In your JSX, add this where you want the modal to appear: */}
+      {showStartForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white p-6 rounded shadow-lg w-full max-w-md">
+            <StartWorkflowForm startRun={startTestRun} />
+            <Button variant="outline" className="mt-4 w-full" onClick={() => setShowStartForm(false)}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Workflow Execution Card Overlay */}
+      <WorkflowExecutionCard
+        isVisible={showExecutionCard}
+        workflowName={executionWorkflowName}
+        steps={executionSteps}
+        isRunning={executionRunning}
+        onStop={handleStopExecution}
+        onClose={handleCloseExecution}
+      />
     </div>
   );
 };

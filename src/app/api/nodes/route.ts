@@ -1,63 +1,56 @@
 import { NextResponse } from 'next/server';
-import { Phone, Mic, Brain, Sparkles, FileText, Send } from "lucide-react";
+
 import { WorkflowNode } from '@/types/nodes';
 
 export const nodes: WorkflowNode[] = [
   {
-    type: 'callTrigger',
-    label: 'Call Trigger',
-    description: 'Triggers when a phone call is received',
-    inputs: [],
-    outputs: ['audioUrl'],
-    icon: Phone,
-    color: 'bg-blue-500',
+    type: "classify_message",
+    label: "Classifier",
+    nodeType: "default",
+    description: "Classifies whether a user query is a coding question",
+    inputs: ["user_query"],
+    outputs: ["is_coding_question"],
+    color: "bg-cyan-500"
   },
   {
-    type: 'transcript',
-    label: 'Transcript',
-    description: 'Converts audio to text using Whisper',
-    inputs: ['audioUrl'],
-    outputs: ['transcript'],
-    icon: Mic,
-    color: 'bg-purple-500',
-  },
-  {
-    type: 'llm',
-    label: 'LLM',
-    description: 'Calls an LLM with a given prompt',
-    inputs: ['prompt'],
-    outputs: ['response'],
-    icon: Brain,
-    color: 'bg-yellow-500',
-  },
-  {
-    type: 'textCleaner',
-    label: 'Text Cleaner',
-    description: 'Cleans and normalizes text',
-    inputs: ['text'],
-    outputs: ['cleanText'],
-    icon: Sparkles,
-    color: 'bg-green-500',
-  },
-  {
-    type: 'notionDoc',
-    label: 'Notion Document',
-    description: 'Creates a Notion document from content',
-    inputs: ['title', 'content'],
-    outputs: ['notionUrl'],
-    icon: FileText,
-    color: 'bg-orange-500',
-  },
-  {
-    type: 'notionToEmail',
-    label: 'Send Notion Email',
-    description: 'Sends a Notion document as an email',
-    inputs: ['notionUrl', 'recipientEmail'],
+    type: "route_query",
+    label: "Router Query",
+    nodeType: "router",
+    description: "Routes query to general or coding path",
+    inputs: ["is_coding_question"],
     outputs: [],
-    icon: Send,
-    color: 'bg-red-500',
+    color: "bg-slate-500"
   },
-];
+  {
+    type: "general_query",
+    label: "General Query",
+    nodeType: "default",
+    description: "Handles non-coding user queries with general LLM",
+    inputs: ["user_query"],
+    outputs: ["llm_result"],
+    color: "bg-yellow-500"
+  },
+  {
+    type: "coding_query",
+    label: "Coding Query",
+    nodeType: "default",
+    description: "Handles coding-related queries using GPT-4",
+    inputs: ["user_query"],
+    outputs: ["llm_result"],
+    color: "bg-green-500"
+  },
+  {
+    type: "coding_query_accuracy",
+    label: "Coding Accuracy",
+    nodeType: "default",
+    description: "Evaluates the accuracy of the code returned",
+    inputs: ["llm_result"],
+    outputs: ["accuracy_percentage"],
+    color: "bg-blue-600"
+  }
+]
+
+   
 
 export async function GET() {
   return NextResponse.json(nodes);

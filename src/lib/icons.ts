@@ -1,18 +1,10 @@
-import {
-    Phone,
-    Mic,
-    Brain,
-    Sparkles,
-    FileText,
-    Mail
-  } from "lucide-react";
-
-
+import { Brain, Route, Percent, MessageCircle, Code } from "lucide-react";
   export const nodeIcons: Record<string, React.ElementType> = {
-    "callTrigger": Phone,
-    "transcript": Mic,
-    "llm": Brain,
-    "textcleaner": Sparkles,
-    "notionDoc": FileText,
-    "notionToEmail": Mail,
+
+
+    "classify_message": Brain,
+    "route_query": Route,
+    "coding_query": Code,
+    "general_query": MessageCircle,
+    "coding_query_accuracy": Percent,
   };
