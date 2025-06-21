@@ -4,7 +4,7 @@ import { useState } from "react";
 
 
 type ChildProps = {
-    startRun: () => void;
+    startRun: (userQuery: string) => void;
 }
 
 const StartWorkflowForm = (props: ChildProps) => {
@@ -15,7 +15,7 @@ const StartWorkflowForm = (props: ChildProps) => {
       if (query.trim()) {
         // In real app, trigger workflow here.
         console.log("Start workflow with query:", query);
-        props.startRun()
+        props.startRun(query)
         setQuery("");
       }
     };

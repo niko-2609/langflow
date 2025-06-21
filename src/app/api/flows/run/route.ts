@@ -26,26 +26,22 @@ export async function POST(req: Request) {
     const cleanedWorkflow = cleanWorkflowJson(body.data)
     console.log(cleanedWorkflow)
 
-    const payload = {
-      user_query: body.query,
-      workflowJson: cleanedWorkflow,
-    };
-    console.log(payload)
+
     const response = await fetch('http://localhost:8080/run-workflow', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          user_query: body.query,
+          workflowJson: cleanedWorkflow,
+        }),
       });
-      
-      if (!response.ok) {
-        return NextResponse.json({"error": "Unexpected output received"})
-      }
+    
       const result = await response.json();
-      console.log(result)
+     console.log(result)
 
-    return NextResponse.json({ message: 'Final run received', received: body })
+     return NextResponse.json({"message": "request processed"})
 }
 
 
