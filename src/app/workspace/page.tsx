@@ -29,7 +29,8 @@ import {
   Settings,
   Menu,
   X,
-  Sparkles
+  Sparkles,
+  TestTube2
 } from "lucide-react";
 import Link from 'next/link'
 import { useAvailableNodes } from '@/hooks/availableNodes';
@@ -62,10 +63,22 @@ const Workspace = () => {
   // In your Workspace component
   const [showStartForm, setShowStartForm] = useState(false);
 
-  // On your Test Run or Start Workflow button:
-  <Button onClick={() => setShowStartForm(true)}>Test Run</Button>
 
   const { toast } = useToast();
+
+
+  const startWorkflow = async () => {
+    try {
+      const response = await fetch('/api/flows/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: workflowJson }),
+      });
+      console.log(response);
+    } catch (error) {
+      console.error('Error starting workflow:', error);
+    }
+  }
 
   // Define types for workflow JSON
   interface WorkflowNodeJson {
@@ -84,8 +97,8 @@ const Workspace = () => {
     nodes: WorkflowNodeJson[];
     edges: WorkflowEdgeJson[];
     selected: string[];
-  }
-
+    }
+    // Execution card
   const [showExecutionCard, setShowExecutionCard] = useState(false);
   const [executionSteps, setExecutionSteps] = useState<{
     id: string;
@@ -100,48 +113,85 @@ const Workspace = () => {
     [setEdges]
   );
 
-  // Update workflowJson whenever nodes, edges, or selection changes
+
+
   useEffect(() => {
-    const incoming: Record<string, number> = {};
-    const outgoing: Record<string, string[]> = {};
-    nodes.forEach((n) => { incoming[n.id] = 0; outgoing[n.id] = []; });
-    edges.forEach((e) => {
-      incoming[e.target] = (incoming[e.target] || 0) + 1;
-      outgoing[e.source] = outgoing[e.source] || [];
-      outgoing[e.source].push(e.target);
-    });
-
-    const nodesWithTypes = nodes.map((n: any) => {
+    const nodesWithTypes: WorkflowNodeJson[] = nodes.map((node: Node) => {
+      const incomingEdges = edges.filter((e) => e.target === node.id);
+      const outgoingEdges = edges.filter((e) => e.source === node.id);
+  
       let nodeType: 'start' | 'end' | 'intermediate' | 'router' = 'intermediate';
-      if (n.type === 'router') nodeType = 'router';
-      else if (incoming[n.id] === 0) nodeType = 'start';
-      else if ((outgoing[n.id] || []).length === 0) nodeType = 'end';
-      // For router nodes, add routes
-      if (nodeType === 'router') {
-        return {
-          id: n.id,
-          label: String(n.data?.label ?? ''),
-          type: n.type,
-          nodeType,
-          routes: outgoing[n.id],
-          position: n.position,
-        };
-      }
-      return {
-        id: n.id,
-        label: String(n.data?.label ?? ''),
-        type: n.type,
+      if (node.type === 'router') nodeType = 'router';
+      else if (incomingEdges.length === 0) nodeType = 'start';
+      else if (outgoingEdges.length === 0) nodeType = 'end';
+  
+      const baseNode: WorkflowNodeJson = {
+        id: node.id,
+        label: typeof node.data?.label === 'string' ? node.data.label : '',
+        type: node.type,
         nodeType,
-        position: n.position,
+        position: node.position,
       };
-    }).filter(Boolean);
-
+  
+      return nodeType === 'router'
+        ? { ...baseNode, routes: outgoingEdges.map((e) => e.target) }
+        : baseNode;
+    });
+  
+    const edgeList: WorkflowEdgeJson[] = edges.map((e) => ({
+      source: e.source,
+      target: e.target,
+    }));
+  
     setWorkflowJson({
       nodes: nodesWithTypes,
-      edges: edges.map(e => ({ source: e.source, target: e.target })),
+      edges: edgeList,
       selected: selectedNodes,
     });
   }, [nodes, edges, selectedNodes]);
+
+  // Update workflowJson whenever nodes, edges, or selection changes
+  // useEffect(() => {
+  //   const incoming: Record<string, number> = {};
+  //   const outgoing: Record<string, string[]> = {};
+  //   nodes.forEach((n) => { incoming[n.id] = 0; outgoing[n.id] = []; });
+  //   edges.forEach((e) => {
+  //     incoming[e.target] = (incoming[e.target] || 0) + 1;
+  //     outgoing[e.source] = outgoing[e.source] || [];
+  //     outgoing[e.source].push(e.target);
+  //   });
+
+  //   const nodesWithTypes = nodes.map((n: any) => {
+  //     let nodeType: 'start' | 'end' | 'intermediate' | 'router' = 'intermediate';
+  //     if (n.type === 'router') nodeType = 'router';
+  //     else if (incoming[n.id] === 0) nodeType = 'start';
+  //     else if ((outgoing[n.id] || []).length === 0) nodeType = 'end';
+  //     // For router nodes, add routes
+  //     if (nodeType === 'router') {
+  //       return {
+  //         id: n.id,
+  //         label: String(n.data?.label ?? ''),
+  //         type: n.type,
+  //         nodeType,
+  //         routes: outgoing[n.id],
+  //         position: n.position,
+  //       };
+  //     }
+  //     return {
+  //       id: n.id,
+  //       label: String(n.data?.label ?? ''),
+  //       type: n.type,
+  //       nodeType,
+  //       position: n.position,
+  //     };
+  //   }).filter(Boolean);
+
+  //   setWorkflowJson({
+  //     nodes: nodesWithTypes,
+  //     edges: edges.map(e => ({ source: e.source, target: e.target })),
+  //     selected: selectedNodes,
+  //   });
+  // }, [nodes, edges, selectedNodes]);
 
   // Handler for selection change
   const onSelectionChange = useCallback((params: { nodes: FlowNode[] }) => {
@@ -216,49 +266,53 @@ const Workspace = () => {
     setShowStartForm(true);
   }
 
-  async function startTestRun() {
+
+  async function setupExecutionCard() {
+    // Initialize execution steps based on workflow nodes
+    const workflowSteps = workflowJson.nodes.map((node, index) => ({
+      id: node.id,
+      name: node.label || `Step ${index + 1}`,
+      status: 'pending' as const
+    }));
+    
+    setExecutionSteps(workflowSteps);
+    setExecutionWorkflowName(saveForm.name || 'Untitled Workflow');
+    setExecutionRunning(true);
+    
+    // Close the start form modal
+    setShowStartForm(false);
+    setIsTesting(false);
+    
+    // Show the execution card
+    setShowExecutionCard(true);
+    
+    // Simulate workflow execution by updating steps progressively
+    const totalSteps = workflowSteps.length;
+    
+    for (let i = 0; i < totalSteps; i++) {
+      // Update current step to running
+      setExecutionSteps(prev => prev.map((step, index) => 
+        index === i ? { ...step, status: 'running' } : step
+      ));
+      
+      // Simulate step execution time
+      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+      
+      // Update current step to completed
+      setExecutionSteps(prev => prev.map((step, index) => 
+        index === i ? { ...step, status: 'completed' } : step
+      ));
+    }
+  }
+
+  async function startTestRun(userQuery: string) {
     try {
-      // Initialize execution steps based on workflow nodes
-      const workflowSteps = workflowJson.nodes.map((node, index) => ({
-        id: node.id,
-        name: node.label || `Step ${index + 1}`,
-        status: 'pending' as const
-      }));
-      
-      setExecutionSteps(workflowSteps);
-      setExecutionWorkflowName(saveForm.name || 'Untitled Workflow');
-      setExecutionRunning(true);
-      
-      // Close the start form modal
-      setShowStartForm(false);
-      setIsTesting(false);
-      
-      // Show the execution card
-      setShowExecutionCard(true);
-      
-      // Simulate workflow execution by updating steps progressively
-      const totalSteps = workflowSteps.length;
-      
-      for (let i = 0; i < totalSteps; i++) {
-        // Update current step to running
-        setExecutionSteps(prev => prev.map((step, index) => 
-          index === i ? { ...step, status: 'running' } : step
-        ));
-        
-        // Simulate step execution time
-        await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
-        
-        // Update current step to completed
-        setExecutionSteps(prev => prev.map((step, index) => 
-          index === i ? { ...step, status: 'completed' } : step
-        ));
-      }
-      
+      setupExecutionCard()
       // Make API call to actual test run endpoint
       const res = await fetch('/api/flows/test-run', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: workflowJson }),
+        body: JSON.stringify({ data: workflowJson, query: userQuery }),
       });
       
       if (!res.ok) throw new Error(await res.text());
@@ -269,6 +323,8 @@ const Workspace = () => {
       });
       
       setExecutionRunning(false);
+      setIsTesting(false);
+      setShowStartForm(false);
       
     } catch (e: any) {
       // Mark current running step as failed
@@ -282,6 +338,8 @@ const Workspace = () => {
       });
       
       setExecutionRunning(false);
+      setIsTesting(false);
+      setShowStartForm(false);
     }
   }
 
@@ -351,12 +409,12 @@ const Workspace = () => {
             Save Workflow
           </Button>
           <Button variant="outline" className="w-full justify-start" onClick={handleTestRun} disabled={isTesting}>
-            <Play className="w-4 h-4 mr-2" />
+            <TestTube2 className="w-4 h-4 mr-2" />
             Test Run
           </Button>
-          <Button variant="outline" className="w-full justify-start">
-            <Settings className="w-4 h-4 mr-2" />
-            Workflow Settings
+          <Button variant="outline" className="w-full justify-start" onClick={startWorkflow}>
+            <Play className="w-4 h-4 mr-2" />
+            Run workflow
           </Button>
         </div>
 
