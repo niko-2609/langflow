@@ -18,6 +18,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -84,7 +85,7 @@ const Workspace = () => {
   interface WorkflowNodeJson {
     id: string;
     label: string;
-    type: string | undefined;
+    type: string | undefined | unknown;
     nodeType: 'start' | 'end' | 'intermediate' | 'router';
     position: { x: number; y: number };
     routes?: string[]; // Only for router nodes
@@ -120,15 +121,16 @@ const Workspace = () => {
       const incomingEdges = edges.filter((e) => e.target === node.id);
       const outgoingEdges = edges.filter((e) => e.source === node.id);
   
-      let nodeType: 'start' | 'end' | 'intermediate' | 'router' = 'intermediate';
-      if (node.type === 'router') nodeType = 'router';
+      let nodeType: 'start' | 'end' | 'intermediate' | 'router' ;
+      if (node.data.label === 'Router Query') nodeType = 'router';
       else if (incomingEdges.length === 0) nodeType = 'start';
       else if (outgoingEdges.length === 0) nodeType = 'end';
+      else nodeType = 'intermediate';
   
       const baseNode: WorkflowNodeJson = {
         id: node.id,
-        label: typeof node.data?.label === 'string' ? node.data.label : '',
-        type: node.type,
+        label: typeof node?.data?.label === 'string' ? node?.data?.label : '',
+        type: node?.data?.type,
         nodeType,
         position: node.position,
       };
@@ -150,48 +152,6 @@ const Workspace = () => {
     });
   }, [nodes, edges, selectedNodes]);
 
-  // Update workflowJson whenever nodes, edges, or selection changes
-  // useEffect(() => {
-  //   const incoming: Record<string, number> = {};
-  //   const outgoing: Record<string, string[]> = {};
-  //   nodes.forEach((n) => { incoming[n.id] = 0; outgoing[n.id] = []; });
-  //   edges.forEach((e) => {
-  //     incoming[e.target] = (incoming[e.target] || 0) + 1;
-  //     outgoing[e.source] = outgoing[e.source] || [];
-  //     outgoing[e.source].push(e.target);
-  //   });
-
-  //   const nodesWithTypes = nodes.map((n: any) => {
-  //     let nodeType: 'start' | 'end' | 'intermediate' | 'router' = 'intermediate';
-  //     if (n.type === 'router') nodeType = 'router';
-  //     else if (incoming[n.id] === 0) nodeType = 'start';
-  //     else if ((outgoing[n.id] || []).length === 0) nodeType = 'end';
-  //     // For router nodes, add routes
-  //     if (nodeType === 'router') {
-  //       return {
-  //         id: n.id,
-  //         label: String(n.data?.label ?? ''),
-  //         type: n.type,
-  //         nodeType,
-  //         routes: outgoing[n.id],
-  //         position: n.position,
-  //       };
-  //     }
-  //     return {
-  //       id: n.id,
-  //       label: String(n.data?.label ?? ''),
-  //       type: n.type,
-  //       nodeType,
-  //       position: n.position,
-  //     };
-  //   }).filter(Boolean);
-
-  //   setWorkflowJson({
-  //     nodes: nodesWithTypes,
-  //     edges: edges.map(e => ({ source: e.source, target: e.target })),
-  //     selected: selectedNodes,
-  //   });
-  // }, [nodes, edges, selectedNodes]);
 
   // Handler for selection change
   const onSelectionChange = useCallback((params: { nodes: FlowNode[] }) => {
