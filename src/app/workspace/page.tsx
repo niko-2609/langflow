@@ -40,6 +40,7 @@ import { nodeIcons } from '@/lib/icons'
 import { useToast } from '@/hooks/use-toast';
 import StartWorkflowForm from '@/components/features/workspace/StartWorkflow';
 import { WorkflowExecutionCard } from '@/components/features/workspace/WorkflowExecutionCard';
+import { WorkflowResponseDisplay } from '@/components/features/workspace/WorkflowResponseDisplay';
 import { CustomNode } from '@/components/features/workspace/CustomNode';
 
 // Custom node types
@@ -108,6 +109,10 @@ const Workspace = () => {
   }[]>([]);
   const [executionRunning, setExecutionRunning] = useState(false);
   const [executionWorkflowName, setExecutionWorkflowName] = useState('Untitled Workflow');
+
+  // Response display state
+  const [showResponseDisplay, setShowResponseDisplay] = useState(false);
+  const [workflowResponse, setWorkflowResponse] = useState<any>(null);
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -266,6 +271,8 @@ const Workspace = () => {
   }
 
   async function startTestRun(userQuery: string) {
+    const startTime = Date.now();
+    
     try {
       setupExecutionCard()
       // Make API call to actual test run endpoint
@@ -277,6 +284,18 @@ const Workspace = () => {
       
       if (!res.ok) throw new Error(await res.text());
       
+      const result = await res.json();
+      const executionTime = Date.now() - startTime;
+      
+      // Prepare response for display
+      setWorkflowResponse({
+        message: result.message || 'Test run completed successfully',
+        result: result.received || result,
+        status: 'success',
+        executionTime,
+        timestamp: new Date().toISOString()
+      });
+      
       toast({
         title: 'Success!',
         description: 'Test run completed successfully.',
@@ -286,11 +305,28 @@ const Workspace = () => {
       setIsTesting(false);
       setShowStartForm(false);
       
+      // Show response after execution card animation completes
+      setTimeout(() => {
+        setShowExecutionCard(false);
+        setShowResponseDisplay(true);
+      }, 1000);
+      
     } catch (e: any) {
       // Mark current running step as failed
       setExecutionSteps(prev => prev.map(step => 
         step.status === 'running' ? { ...step, status: 'failed' } : step
       ));
+      
+      const executionTime = Date.now() - startTime;
+      
+      // Prepare error response for display
+      setWorkflowResponse({
+        message: 'Test run failed',
+        result: e.message || 'Unknown error occurred',
+        status: 'error',
+        executionTime,
+        timestamp: new Date().toISOString()
+      });
       
       toast({
         title: 'Failed',
@@ -300,6 +336,12 @@ const Workspace = () => {
       setExecutionRunning(false);
       setIsTesting(false);
       setShowStartForm(false);
+      
+      // Show response even on failure
+      setTimeout(() => {
+        setShowExecutionCard(false);
+        setShowResponseDisplay(true);
+      }, 1000);
     }
   }
 
@@ -542,6 +584,14 @@ const Workspace = () => {
         isRunning={executionRunning}
         onStop={handleStopExecution}
         onClose={handleCloseExecution}
+      />
+
+      {/* Workflow Response Display */}
+      <WorkflowResponseDisplay
+        isVisible={showResponseDisplay}
+        response={workflowResponse}
+        workflowName={executionWorkflowName}
+        onClose={() => setShowResponseDisplay(false)}
       />
     </div>
   );

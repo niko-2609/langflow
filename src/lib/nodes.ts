@@ -1,8 +1,6 @@
-import { NextResponse } from 'next/server';
-
 import { WorkflowNode } from '@/types/nodes';
 
-const nodes: WorkflowNode[] = [
+export const nodes: WorkflowNode[] = [
   {
     type: "classify_message",
     label: "Classifier",
@@ -48,10 +46,4 @@ const nodes: WorkflowNode[] = [
     outputs: ["accuracy_percentage"],
     color: "bg-blue-600"
   }
-]
-
-   
-
-export async function GET() {
-  return NextResponse.json(nodes);
-}
+]; 

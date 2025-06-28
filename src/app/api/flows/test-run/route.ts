@@ -45,7 +45,7 @@ export async function POST(req: Request) {
       const result = await response.json();
       console.log(result)
 
-    return NextResponse.json({ message: 'Final run received', received: body })
+    return NextResponse.json({ message: 'Final run received', received: result })
 }
 
 
