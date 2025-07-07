@@ -42,6 +42,8 @@ import StartWorkflowForm from '@/components/features/workspace/StartWorkflow';
 import { WorkflowExecutionCard } from '@/components/features/workspace/WorkflowExecutionCard';
 import { WorkflowResponseDisplay } from '@/components/features/workspace/WorkflowResponseDisplay';
 import { CustomNode } from '@/components/features/workspace/CustomNode';
+import { useWorkflowStream } from '@/hooks/useWorkflowStream';
+import { StreamWorkflowRequest } from '@/types/streaming';
 
 // Custom node types
 const nodeTypes = {};
@@ -113,6 +115,54 @@ const Workspace = () => {
   // Response display state
   const [showResponseDisplay, setShowResponseDisplay] = useState(false);
   const [workflowResponse, setWorkflowResponse] = useState<any>(null);
+
+  // SSE Streaming hook
+  const {
+    steps: streamSteps,
+    isConnected,
+    isRunning: streamRunning,
+    error: streamError,
+    finalResponse,
+    startWorkflow: startStreamWorkflow,
+    stopWorkflow: stopStreamWorkflow,
+    resetWorkflow,
+    closeConnection
+  } = useWorkflowStream({
+    onStepUpdate: (step) => {
+      console.log('Step update:', step);
+    },
+    onWorkflowComplete: (response) => {
+      console.log('✅ Workflow completed with response:', response);
+      console.log('✅ Response type:', typeof response);
+      console.log('✅ Response keys:', response ? Object.keys(response) : 'null');
+      
+      // Show response for any non-null response
+      if (response !== null && response !== undefined) {
+        const formattedResponse = {
+          result: response,
+          status: 'success',
+          timestamp: new Date().toISOString()
+        };
+        console.log('📤 Setting workflow response:', formattedResponse);
+        setWorkflowResponse(formattedResponse);
+        setShowExecutionCard(false);
+        setShowResponseDisplay(true);
+        
+        // Close the SSE connection since we have the final response
+        closeConnection();
+      } else {
+        console.log('❌ No valid response to display');
+      }
+    },
+    onError: (error) => {
+      console.error('Workflow error:', error);
+      toast({
+        title: 'Workflow Error',
+        description: error,
+        variant: 'destructive'
+      });
+    }
+  });
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -232,128 +282,54 @@ const Workspace = () => {
   }
 
 
-  async function setupExecutionCard() {
-    // Initialize execution steps based on workflow nodes
-    const workflowSteps = workflowJson.nodes.map((node, index) => ({
-      id: node.id,
-      name: node.label || `Step ${index + 1}`,
-      status: 'pending' as const
-    }));
-    
-    setExecutionSteps(workflowSteps);
-    setExecutionWorkflowName(saveForm.name || 'Untitled Workflow');
-    setExecutionRunning(true);
-    
-    // Close the start form modal
-    setShowStartForm(false);
-    setIsTesting(false);
-    
-    // Show the execution card
-    setShowExecutionCard(true);
-    
-    // Simulate workflow execution by updating steps progressively
-    const totalSteps = workflowSteps.length;
-    
-    for (let i = 0; i < totalSteps; i++) {
-      // Update current step to running
-      setExecutionSteps(prev => prev.map((step, index) => 
-        index === i ? { ...step, status: 'running' } : step
-      ));
-      
-      // Simulate step execution time
-      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
-      
-      // Update current step to completed
-      setExecutionSteps(prev => prev.map((step, index) => 
-        index === i ? { ...step, status: 'completed' } : step
-      ));
-    }
-  }
+
 
   async function startTestRun(userQuery: string) {
-    const startTime = Date.now();
-    
-    try {
-      setupExecutionCard()
-      // Make API call to actual test run endpoint
-      const res = await fetch('/api/flows/test-run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: workflowJson, query: userQuery }),
-      });
+      // Use SSE streaming
+      const streamRequest: StreamWorkflowRequest = {
+        query: userQuery,
+        workflowJson: {
+          nodes: workflowJson.nodes.map(node => ({
+            id: node.id,
+            label: node.label,
+            nodeType: node.nodeType
+          })),
+          edges: workflowJson.edges
+        }
+      };
+
+      console.log('🎯 Starting workflow execution');
+      console.log('🔍 Full workflow JSON:', workflowJson);
       
-      if (!res.ok) throw new Error(await res.text());
-      
-      const result = await res.json();
-      const executionTime = Date.now() - startTime;
-      
-      // Prepare response for display
-      setWorkflowResponse({
-        message: result.message || 'Test run completed successfully',
-        result: result.received || result,
-        status: 'success',
-        executionTime,
-        timestamp: new Date().toISOString()
-      });
-      
-      toast({
-        title: 'Success!',
-        description: 'Test run completed successfully.',
-      });
-      
-      setExecutionRunning(false);
-      setIsTesting(false);
+      setExecutionSteps([]);
       setShowStartForm(false);
-      
-      // Show response after execution card animation completes
-      setTimeout(() => {
-        setShowExecutionCard(false);
-        setShowResponseDisplay(true);
-      }, 1000);
-      
-    } catch (e: any) {
-      // Mark current running step as failed
-      setExecutionSteps(prev => prev.map(step => 
-        step.status === 'running' ? { ...step, status: 'failed' } : step
-      ));
-      
-      const executionTime = Date.now() - startTime;
-      
-      // Prepare error response for display
-      setWorkflowResponse({
-        message: 'Test run failed',
-        result: e.message || 'Unknown error occurred',
-        status: 'error',
-        executionTime,
-        timestamp: new Date().toISOString()
-      });
-      
-      toast({
-        title: 'Failed',
-        description: 'Could not complete test workflow.',
-      });
-      
-      setExecutionRunning(false);
       setIsTesting(false);
-      setShowStartForm(false);
+      setShowExecutionCard(true);
+      setExecutionWorkflowName(saveForm.name || 'Untitled Workflow');
       
-      // Show response even on failure
-      setTimeout(() => {
-        setShowExecutionCard(false);
-        setShowResponseDisplay(true);
-      }, 1000);
-    }
+      await startStreamWorkflow(streamRequest);
+
   }
 
   const handleStopExecution = () => {
-    setExecutionRunning(false);
-    // Optionally update steps to show stopped/failed
-    setExecutionSteps(steps => steps.map(s =>
-      s.status === 'running' ? { ...s, status: 'failed' } : s
-    ));
+      stopStreamWorkflow();
+      closeConnection(); // Close SSE connection when user stops
   };
 
-  const handleCloseExecution = () => setShowExecutionCard(false);
+  const handleCloseExecution = () => {
+    setShowExecutionCard(false);
+    if (isConnected) {
+      closeConnection(); // Close SSE connection when user closes execution card
+    }
+  };
+
+  const handleCloseResponse = () => {
+    setShowResponseDisplay(false);
+    // Connection should already be closed when response is shown, but just in case
+    if (isConnected) {
+      closeConnection();
+    }
+  };
 
   return (
     <div className="h-screen flex bg-background">
@@ -410,10 +386,12 @@ const Workspace = () => {
             <Save className="w-4 h-4 mr-2" />
             Save Workflow
           </Button>
-          <Button variant="outline" className="w-full justify-start" onClick={handleTestRun} disabled={isTesting}>
-            <TestTube2 className="w-4 h-4 mr-2" />
-            Test Run
-          </Button>
+          <div className="space-y-2">
+            <Button variant="outline" className="w-full justify-start" onClick={handleTestRun} disabled={isTesting}>
+              <TestTube2 className="w-4 h-4 mr-2" />
+              Test Run 
+            </Button>
+          </div>
           <Button variant="outline" className="w-full justify-start" onClick={startWorkflow}>
             <Play className="w-4 h-4 mr-2" />
             Run workflow
@@ -532,11 +510,6 @@ const Workspace = () => {
             </Card>
           </div>
         )}
-
-        {/* Debug JSON output (optional) */}
-        {/* <pre className="absolute bottom-4 right-4 bg-white/80 p-2 rounded text-xs max-w-md max-h-64 overflow-auto border border-gray-200 shadow-lg z-50">
-          {JSON.stringify(workflowJson, null, 2)}
-        </pre> */}
       </div>
 
       {/* Save Dialog */}
@@ -580,8 +553,8 @@ const Workspace = () => {
       <WorkflowExecutionCard
         isVisible={showExecutionCard}
         workflowName={executionWorkflowName}
-        steps={executionSteps}
-        isRunning={executionRunning}
+        steps={streamSteps}
+        isRunning={streamRunning}
         onStop={handleStopExecution}
         onClose={handleCloseExecution}
       />
@@ -591,7 +564,7 @@ const Workspace = () => {
         isVisible={showResponseDisplay}
         response={workflowResponse}
         workflowName={executionWorkflowName}
-        onClose={() => setShowResponseDisplay(false)}
+        onClose={handleCloseResponse}
       />
     </div>
   );

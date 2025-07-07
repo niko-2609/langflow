@@ -70,22 +70,34 @@ export const WorkflowResponseDisplay: React.FC<WorkflowResponseDisplayProps> = (
   };
 
   const formatResponseContent = () => {
-    const result = response?.result?.result;
+    // Handle both nested and direct response structures
+    const result = response?.result?.result || response?.result || response;
   
     if (!result) return "No response available.";
-  
-    const { is_coding_question, llm_result, accuracy_percentage } = result;
-  
-    if (is_coding_question) {
-      let output = llm_result || "";
-      if (accuracy_percentage && accuracy_percentage.trim() !== "") {
-        output += `\n\nAccuracy: ${accuracy_percentage}%`;
+
+    // Handle direct result object
+    if (typeof result === 'object' && result?.llm_result) {
+      const { is_coding_question, llm_result, accuracy_percentage } = result;
+      
+      if (is_coding_question) {
+        let output = llm_result || "";
+        if (accuracy_percentage && accuracy_percentage.trim() !== "") {
+          output += `\n\nAccuracy: ${accuracy_percentage}%`;
+        }
+        return output;
       }
-      return output;
+      
+      // For non-coding questions, just return the llm_result
+      return llm_result || "No answer found.";
     }
-  
-    // For non-coding questions, just return the llm_result
-    return result.llm_result || "No answer found.";
+
+    // Handle string responses or fallback
+    if (typeof result === 'string') {
+      return result;
+    }
+
+    // Handle object responses (JSON stringify)
+    return JSON.stringify(result, null, 2);
   };
   
 
