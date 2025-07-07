@@ -66,7 +66,6 @@ const Workspace = () => {
 
   // In your Workspace component
   const [showStartForm, setShowStartForm] = useState(false);
-  const [useStreaming, setUseStreaming] = useState(true);
 
 
   const { toast } = useToast();
@@ -283,46 +282,9 @@ const Workspace = () => {
   }
 
 
-  async function setupExecutionCard() {
-    // Initialize execution steps based on workflow nodes
-    const workflowSteps = workflowJson.nodes.map((node, index) => ({
-      id: node.id,
-      name: node.label || `Step ${index + 1}`,
-      status: 'pending' as const
-    }));
-    
-    setExecutionSteps(workflowSteps);
-    setExecutionWorkflowName(saveForm.name || 'Untitled Workflow');
-    setExecutionRunning(true);
-    
-    // Close the start form modal
-    setShowStartForm(false);
-    setIsTesting(false);
-    
-    // Show the execution card
-    setShowExecutionCard(true);
-    
-    // Simulate workflow execution by updating steps progressively
-    const totalSteps = workflowSteps.length;
-    
-    for (let i = 0; i < totalSteps; i++) {
-      // Update current step to running
-      setExecutionSteps(prev => prev.map((step, index) => 
-        index === i ? { ...step, status: 'running' } : step
-      ));
-      
-      // Simulate step execution time
-      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
-      
-      // Update current step to completed
-      setExecutionSteps(prev => prev.map((step, index) => 
-        index === i ? { ...step, status: 'completed' } : step
-      ));
-    }
-  }
+
 
   async function startTestRun(userQuery: string) {
-    if (useStreaming) {
       // Use SSE streaming
       const streamRequest: StreamWorkflowRequest = {
         query: userQuery,
@@ -336,118 +298,27 @@ const Workspace = () => {
         }
       };
 
-      // Initialize execution steps from workflow nodes
-      const initialSteps = workflowJson.nodes
-        .filter(node => node.nodeType !== 'router') // Exclude router nodes
-        .map(node => ({
-          id: node.label, // Use node label as the step ID to match backend
-          name: node.label,
-          status: 'pending' as const
-        }));
-      
-      console.log('🎯 Initializing execution with steps:', initialSteps);
+      console.log('🎯 Starting workflow execution');
       console.log('🔍 Full workflow JSON:', workflowJson);
       
-      setExecutionSteps(initialSteps);
+      setExecutionSteps([]);
       setShowStartForm(false);
       setIsTesting(false);
       setShowExecutionCard(true);
       setExecutionWorkflowName(saveForm.name || 'Untitled Workflow');
       
-      await startStreamWorkflow(streamRequest, initialSteps);
-    } else {
-      // Use legacy non-streaming approach
-      const startTime = Date.now();
-      
-      try {
-        setupExecutionCard()
-        // Make API call to actual test run endpoint
-        const res = await fetch('/api/flows/test-run', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data: workflowJson, query: userQuery }),
-        });
-        
-        if (!res.ok) throw new Error(await res.text());
-        
-        const result = await res.json();
-        const executionTime = Date.now() - startTime;
-        
-        // Prepare response for display
-        setWorkflowResponse({
-          message: result.message || 'Test run completed successfully',
-          result: result.received || result,
-          status: 'success',
-          executionTime,
-          timestamp: new Date().toISOString()
-        });
-        
-        toast({
-          title: 'Success!',
-          description: 'Test run completed successfully.',
-        });
-        
-        setExecutionRunning(false);
-        setIsTesting(false);
-        setShowStartForm(false);
-        
-        // Show response after execution card animation completes
-        setTimeout(() => {
-          setShowExecutionCard(false);
-          setShowResponseDisplay(true);
-        }, 1000);
-        
-      } catch (e: any) {
-        // Mark current running step as failed
-        setExecutionSteps(prev => prev.map(step => 
-          step.status === 'running' ? { ...step, status: 'failed' } : step
-        ));
-        
-        const executionTime = Date.now() - startTime;
-        
-        // Prepare error response for display
-        setWorkflowResponse({
-          message: 'Test run failed',
-          result: e.message || 'Unknown error occurred',
-          status: 'error',
-          executionTime,
-          timestamp: new Date().toISOString()
-        });
-        
-        toast({
-          title: 'Failed',
-          description: 'Could not complete test workflow.',
-        });
-        
-        setExecutionRunning(false);
-        setIsTesting(false);
-        setShowStartForm(false);
-        
-        // Show response even on failure
-        setTimeout(() => {
-          setShowExecutionCard(false);
-          setShowResponseDisplay(true);
-        }, 1000);
-      }
-    }
+      await startStreamWorkflow(streamRequest);
+
   }
 
   const handleStopExecution = () => {
-    if (useStreaming) {
       stopStreamWorkflow();
       closeConnection(); // Close SSE connection when user stops
-    } else {
-      setExecutionRunning(false);
-      // Optionally update steps to show stopped/failed
-      setExecutionSteps(steps => steps.map(s =>
-        s.status === 'running' ? { ...s, status: 'failed' } : s
-      ));
-    }
   };
 
   const handleCloseExecution = () => {
     setShowExecutionCard(false);
-    if (useStreaming && isConnected) {
+    if (isConnected) {
       closeConnection(); // Close SSE connection when user closes execution card
     }
   };
@@ -455,7 +326,7 @@ const Workspace = () => {
   const handleCloseResponse = () => {
     setShowResponseDisplay(false);
     // Connection should already be closed when response is shown, but just in case
-    if (useStreaming && isConnected) {
+    if (isConnected) {
       closeConnection();
     }
   };
@@ -518,17 +389,8 @@ const Workspace = () => {
           <div className="space-y-2">
             <Button variant="outline" className="w-full justify-start" onClick={handleTestRun} disabled={isTesting}>
               <TestTube2 className="w-4 h-4 mr-2" />
-              Test Run {useStreaming ? '(Streaming)' : '(Legacy)'}
+              Test Run 
             </Button>
-            <label className="flex items-center space-x-2 text-xs text-muted-foreground">
-              <input
-                type="checkbox"
-                checked={useStreaming}
-                onChange={(e) => setUseStreaming(e.target.checked)}
-                className="w-3 h-3"
-              />
-              <span>Use real-time streaming</span>
-            </label>
           </div>
           <Button variant="outline" className="w-full justify-start" onClick={startWorkflow}>
             <Play className="w-4 h-4 mr-2" />
@@ -648,11 +510,6 @@ const Workspace = () => {
             </Card>
           </div>
         )}
-
-        {/* Debug JSON output (optional) */}
-        {/* <pre className="absolute bottom-4 right-4 bg-white/80 p-2 rounded text-xs max-w-md max-h-64 overflow-auto border border-gray-200 shadow-lg z-50">
-          {JSON.stringify(workflowJson, null, 2)}
-        </pre> */}
       </div>
 
       {/* Save Dialog */}
@@ -696,8 +553,8 @@ const Workspace = () => {
       <WorkflowExecutionCard
         isVisible={showExecutionCard}
         workflowName={executionWorkflowName}
-        steps={useStreaming ? streamSteps : executionSteps}
-        isRunning={useStreaming ? streamRunning : executionRunning}
+        steps={streamSteps}
+        isRunning={streamRunning}
         onStop={handleStopExecution}
         onClose={handleCloseExecution}
       />

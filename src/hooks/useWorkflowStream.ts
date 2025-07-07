@@ -218,7 +218,7 @@ export function useWorkflowStream(options: UseWorkflowStreamOptions = {}) {
       
       setState(prev => ({
         ...prev,
-        steps: initialSteps || [],
+        steps: [],
         isRunning: true,
         error: null,
         finalResponse: null
