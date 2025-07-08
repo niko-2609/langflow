@@ -44,6 +44,7 @@ import { WorkflowResponseDisplay } from '@/components/features/workspace/Workflo
 import { CustomNode } from '@/components/features/workspace/CustomNode';
 import { useWorkflowStream } from '@/hooks/useWorkflowStream';
 import { StreamWorkflowRequest } from '@/types/streaming';
+import { useSearchParams } from 'next/navigation';
 
 // Custom node types
 const nodeTypes = {};
@@ -53,6 +54,9 @@ const initialNodes: Node[] = [];
 const initialEdges: Edge[] = [];
 
 const Workspace = () => {
+  const searchParams = useSearchParams();
+  const flowId = searchParams.get('flowId');
+  
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -63,6 +67,8 @@ const Workspace = () => {
   const [isTesting, setIsTesting] = useState(false);
   const [workflowJson, setWorkflowJson] = useState<WorkflowJson>({ nodes: [], edges: [], selected: [] });
   const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
+  const [currentFlowId, setCurrentFlowId] = useState<string | null>(flowId);
+  const [isLoadingWorkflow, setIsLoadingWorkflow] = useState(false);
 
   // In your Workspace component
   const [showStartForm, setShowStartForm] = useState(false);
@@ -115,7 +121,9 @@ const Workspace = () => {
   // Response display state
   const [showResponseDisplay, setShowResponseDisplay] = useState(false);
   const [workflowResponse, setWorkflowResponse] = useState<any>(null);
-
+  
+  const [lastRunTime, setLastRunTime] = useState<Date | null>(null);
+ 
   // SSE Streaming hook
   const {
     steps: streamSteps,
@@ -207,6 +215,73 @@ const Workspace = () => {
     });
   }, [nodes, edges, selectedNodes]);
 
+  // Load workflow if flowId is provided
+  useEffect(() => {
+    if (flowId && !isLoadingWorkflow) {
+      const loadWorkflow = async () => {
+        setIsLoadingWorkflow(true);
+        try {
+          const response = await fetch(`/api/flows/${flowId}`);
+          if (!response.ok) {
+            throw new Error('Failed to load workflow');
+          }
+          
+          const flow = await response.json();
+          
+          // Set form data
+          setSaveForm({
+            name: flow.name,
+            description: flow.description || '',
+            organizationId: '',
+            isPublic: flow.isPublic
+          });
+          
+          // Load workflow data if available
+          if (flow.data && flow.data.nodes && flow.data.edges) {
+            // Convert saved workflow data back to React Flow format
+            const loadedNodes: Node[] = flow.data.nodes.map((node: any, index: number) => ({
+              id: node.id,
+              type: 'custom',
+              position: node.position || { x: 100 + (index * 200), y: 100 + (index * 100) },
+              data: {
+                label: node.label,
+                type: node.type,
+                nodeType: node.nodeType,
+                // Add other node data as needed
+              }
+            }));
+            
+            const loadedEdges: Edge[] = flow.data.edges.map((edge: any) => ({
+              id: `${edge.source}-${edge.target}`,
+              source: edge.source,
+              target: edge.target,
+            }));
+            
+            setNodes(loadedNodes);
+            setEdges(loadedEdges);
+            setCurrentFlowId(flow.id);
+          }
+          
+          toast({
+            title: 'Workflow Loaded',
+            description: `Loaded workflow: ${flow.name}`,
+          });
+          
+        } catch (error) {
+          console.error('Error loading workflow:', error);
+          toast({
+            title: 'Error',
+            description: 'Failed to load workflow',
+            variant: 'destructive'
+          });
+        } finally {
+          setIsLoadingWorkflow(false);
+        }
+      };
+      
+      loadWorkflow();
+    }
+  }, [flowId, toast]);
 
   // Handler for selection change
   const onSelectionChange = useCallback((params: { nodes: FlowNode[] }) => {
@@ -248,21 +323,45 @@ const Workspace = () => {
   async function handleSave() {
     setIsSaving(true);
     try {
-      const res = await fetch('/api/flows', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: saveForm.name,
-          description: saveForm.description,
-          organizationId: saveForm.organizationId,
-          isPublic: saveForm.isPublic,
-          data: workflowJson,
-        }),
-      });
+      let res;
+      if (currentFlowId) {
+        // Update existing workflow
+        res = await fetch(`/api/flows/${currentFlowId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: saveForm.name,
+            description: saveForm.description,
+            isPublic: saveForm.isPublic,
+            data: workflowJson,
+          }),
+        });
+      } else {
+        // Create new workflow
+        res = await fetch('/api/flows', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: saveForm.name,
+            description: saveForm.description,
+            organizationId: saveForm.organizationId,
+            isPublic: saveForm.isPublic,
+            data: workflowJson,
+            lastRunTime: lastRunTime,
+          }),
+        });
+      }
+      
       if (!res.ok) throw new Error(await res.text());
+      
+      const savedFlow = await res.json();
+      if (!currentFlowId) {
+        setCurrentFlowId(savedFlow.id);
+      }
+      
       toast({
         title: 'Success!',
-        description: 'Your workflow was saved.',
+        description: currentFlowId ? 'Your workflow was updated.' : 'Your workflow was saved.',
       })
       setShowSaveDialog(false);
     } catch (e: any) {
@@ -278,6 +377,7 @@ const Workspace = () => {
   // Test Run handler
   async function handleTestRun() {
     setIsTesting(true);
+    setLastRunTime(new Date());
     setShowStartForm(true);
   }
 
@@ -288,6 +388,7 @@ const Workspace = () => {
       // Use SSE streaming
       const streamRequest: StreamWorkflowRequest = {
         query: userQuery,
+        flowId: currentFlowId || undefined,
         workflowJson: {
           nodes: workflowJson.nodes.map(node => ({
             id: node.id,
@@ -445,9 +546,9 @@ const Workspace = () => {
               >
                 <Menu className="w-4 h-4" />
               </Button>
-              <h2 className="text-lg font-semibold hidden sm:block">Untitled Workflow</h2>
-              <h2 className="text-base font-semibold sm:hidden">Workflow</h2>
-              <Badge variant="secondary">Draft</Badge>
+              <h2 className="text-lg font-semibold hidden sm:block">{saveForm.name || 'Untitled Workflow'}</h2>
+              <h2 className="text-base font-semibold sm:hidden">{saveForm.name || 'Workflow'}</h2>
+              <Badge variant="secondary">{currentFlowId ? 'Saved' : 'Draft'}</Badge>
             </div>
             <div className="flex items-center space-x-3">
               <span className="text-sm text-muted-foreground">

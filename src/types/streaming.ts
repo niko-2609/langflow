@@ -37,6 +37,7 @@ export interface UseWorkflowStreamOptions {
 
 export interface StreamWorkflowRequest {
   query: string;
+  flowId?: string;
   workflowJson: {
     nodes: Array<{
       id: string;

@@ -23,26 +23,7 @@ import {
 import Link from "next/link"
 import { SignedIn, SignedOut, SignInButton, SignOutButton, UserButton } from "@clerk/nextjs"
 
-// Define the type for our metrics
-type Metric = {
-  title: string
-  value: string
-  change: string
-  icon: 'Workflow' | 'CheckCircle' | 'XCircle' | 'Users'
-  color: string
-}
-
-// Define the type for our workflows
-type Workflow = {
-  id: number
-  name: string
-  description: string
-  status: 'active' | 'paused'
-  lastRun: string
-  successRate: number
-  executions: number
-  failures: number
-}
+import { DashboardMetric, DashboardWorkflow, DashboardRecentActivity } from '@/types/dashboard'
 
 // Map of icon names to components
 const iconMap = {
@@ -54,10 +35,12 @@ const iconMap = {
 
 export function DashboardClient({
   metrics,
-  workflows
+  workflows,
+  recentActivity
 }: {
-  metrics: Metric[]
-  workflows: Workflow[]
+  metrics: DashboardMetric[]
+  workflows: DashboardWorkflow[]
+  recentActivity: DashboardRecentActivity[]
 }) {
   return (
     <div className="min-h-screen bg-background">
@@ -141,7 +124,8 @@ export function DashboardClient({
 
             <div className="space-y-4">
               {workflows.map((workflow) => (
-                <Card key={workflow.id} className="hover-lift cursor-pointer">
+                <Link key={workflow.id} href={`/workspace?flowId=${workflow.id}`}>
+                  <Card className="hover-lift cursor-pointer">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
@@ -161,11 +145,11 @@ export function DashboardClient({
                           className={workflow.status === 'active' ? 'bg-green-100 text-green-800 hover:bg-green-100' : ''}
                         >
                           {workflow.status === 'active' ? (
-                            <Play className="w-3 h-3 mr-1" />
+                            <CheckCircle className="w-3 h-3 mr-1" />
                           ) : (
                             <Pause className="w-3 h-3 mr-1" />
                           )}
-                          {workflow.status}
+                          {workflow.status === 'active' ? 'success' : workflow.status}
                         </Badge>
                         <Button variant="ghost" size="sm">
                           <MoreHorizontal className="w-4 h-4" />
@@ -193,7 +177,8 @@ export function DashboardClient({
                       </div>
                     </div>
                   </CardContent>
-                </Card>
+                  </Card>
+                </Link>
               ))}
             </div>
           </div>
@@ -230,14 +215,23 @@ export function DashboardClient({
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-3">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    <div className="flex-1 text-sm">
-                      <p className="font-medium">Invoice Processing completed</p>
-                      <p className="text-muted-foreground">2 minutes ago</p>
-                    </div>
-                  </div>
-                  {/* ... rest of the activity items */}
+                  {recentActivity.length > 0 ? (
+                    recentActivity.map((activity) => (
+                      <div key={activity.id} className="flex items-center space-x-3">
+                        <div className={`w-2 h-2 rounded-full ${
+                          activity.status === 'success' ? 'bg-green-500' : 'bg-red-500'
+                        }`}></div>
+                        <div className="flex-1 text-sm">
+                          <p className="font-medium">
+                            {activity.flowName} {activity.status === 'success' ? 'completed' : 'failed'}
+                          </p>
+                          <p className="text-muted-foreground">{activity.executedAt}</p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No recent activity</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
