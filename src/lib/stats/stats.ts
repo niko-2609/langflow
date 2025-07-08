@@ -4,8 +4,10 @@ export async function getTotalWorkflows(userId: string) {
     return prisma.flow.count({ where: { userId } });
   }
   
-  export async function getActiveWorkflows(userId: string) {
-    return prisma.flow.count({ where: { userId, status: 'ACTIVE' } });
+  export async function getSuccessfulExecutions(userId: string) {
+    return prisma.workflowExecution.count({
+      where: { flow: { userId }, status: 'SUCCESS' },
+    });
   }
   
   export async function getFailedExecutions(userId: string) {
@@ -14,6 +16,8 @@ export async function getTotalWorkflows(userId: string) {
     });
   }
   
-  export async function getTotalUsers() {
-    return prisma.user.count();
+  export async function getTotalExecutions(userId: string) {
+    return prisma.workflowExecution.count({
+      where: { flow: { userId } },
+    });
   }
