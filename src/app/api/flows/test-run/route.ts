@@ -31,7 +31,7 @@ export async function POST(req: Request) {
       workflowJson: cleanedWorkflow,
     };
     console.log(payload)
-    const response = await fetch('http://localhost:8080/run-workflow', {
+    const response = await fetch('https://api.langflow.digital/run-workflow', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -182,7 +182,7 @@ async function streamWorkflowFromPython(
     for (const port of possiblePorts) {
       try {
         console.log(`🔍 Trying Python backend on port ${port}...`);
-        response = await fetch(`http://localhost:${port}/stream-workflow`, {
+        response = await fetch(`https://api.langflow.digital/stream-workflow`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
