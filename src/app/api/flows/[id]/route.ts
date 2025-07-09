@@ -54,7 +54,7 @@ export async function PUT(
     }
 
     const flowId = params.id;
-    const { name, description, data, isPublic } = await request.json();
+    const { name, description, data, isPublic, lastRunTime } = await request.json();
 
     // Check if flow exists and belongs to user
     const existingFlow = await prisma.flow.findFirst({
@@ -76,7 +76,10 @@ export async function PUT(
         description,
         data,
         isPublic: isPublic ?? existingFlow.isPublic,
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        lastRunAt: lastRunTime
+        // Remove executions: {} as it's an Int field and should not be set to an empty object
+        // The executions field is automatically incremented by the workflow execution APIs
       }
     });
 

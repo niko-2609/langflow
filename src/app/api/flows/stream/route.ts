@@ -309,7 +309,7 @@ async function streamWorkflowFromPython(
 }
 
 // Function to record workflow execution
-async function recordWorkflowExecution(
+export async function recordWorkflowExecution(
   workflowId: string,
   flowId: string | undefined,
   status: 'SUCCESS' | 'FAILURE',
