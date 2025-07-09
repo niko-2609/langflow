@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     console.log(cleanedWorkflow)
 
 
-    const response = await fetch('http://localhost:8080/run-workflow', {
+    const response = await fetch('https://api.langflow.digital/run-workflow', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
