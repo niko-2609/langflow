@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import prisma from "@/lib/prisma";
+import { recordWorkflowExecution } from "./stream/route";
 
 export async function POST(req: Request) {
   const { userId: clerkId } = await auth();
@@ -34,6 +35,8 @@ export async function POST(req: Request) {
       lastRunAt: lastRunTime ?? null,
     },
   });
+
+  recordWorkflowExecution(flow.id, flow.id, 'SUCCESS', {}, {}, '', clerkId);
 
   return new Response(JSON.stringify(flow), { status: 201 });
 }

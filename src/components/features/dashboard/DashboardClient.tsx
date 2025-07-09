@@ -100,9 +100,6 @@ export function DashboardClient({
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{metric.value}</div>
-                  <p className="text-xs text-muted-foreground">
-                    {metric.change}
-                  </p>
                 </CardContent>
               </Card>
             )
@@ -125,7 +122,7 @@ export function DashboardClient({
             <div className="space-y-4">
               {workflows.map((workflow) => (
                 <Link key={workflow.id} href={`/workspace?flowId=${workflow.id}`}>
-                  <Card className="hover-lift cursor-pointer">
+                  <Card className="hover-lift cursor-pointer my-4">
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
@@ -197,10 +194,10 @@ export function DashboardClient({
                     Create New Workflow
                   </Button>
                 </Link>
-                <Button variant="outline" className="w-full justify-start">
+                {/* <Button variant="outline" className="w-full justify-start">
                   <TrendingUp className="w-4 h-4 mr-2" />
                   View Analytics
-                </Button>
+                </Button> */}
                 <Button variant="outline" className="w-full justify-start">
                   <Calendar className="w-4 h-4 mr-2" />
                   Schedule Workflow

@@ -178,45 +178,8 @@ const Workspace = () => {
   );
 
 
-
-  useEffect(() => {
-    const nodesWithTypes: WorkflowNodeJson[] = nodes.map((node: Node) => {
-      const incomingEdges = edges.filter((e) => e.target === node.id);
-      const outgoingEdges = edges.filter((e) => e.source === node.id);
-  
-      let nodeType: 'start' | 'end' | 'intermediate' | 'router' ;
-      if (node.data.label === 'Router Query') nodeType = 'router';
-      else if (incomingEdges.length === 0) nodeType = 'start';
-      else if (outgoingEdges.length === 0) nodeType = 'end';
-      else nodeType = 'intermediate';
-  
-      const baseNode: WorkflowNodeJson = {
-        id: node.id,
-        label: typeof node?.data?.label === 'string' ? node?.data?.label : '',
-        type: node?.data?.type,
-        nodeType,
-        position: node.position,
-      };
-  
-      return nodeType === 'router'
-        ? { ...baseNode, routes: outgoingEdges.map((e) => e.target) }
-        : baseNode;
-    });
-  
-    const edgeList: WorkflowEdgeJson[] = edges.map((e) => ({
-      source: e.source,
-      target: e.target,
-    }));
-  
-    setWorkflowJson({
-      nodes: nodesWithTypes,
-      edges: edgeList,
-      selected: selectedNodes,
-    });
-  }, [nodes, edges, selectedNodes]);
-
-  // Load workflow if flowId is provided
-  useEffect(() => {
+   // Load workflow if flowId is provided
+   useEffect(() => {
     if (flowId && !isLoadingWorkflow) {
       const loadWorkflow = async () => {
         setIsLoadingWorkflow(true);
@@ -281,7 +244,44 @@ const Workspace = () => {
       
       loadWorkflow();
     }
-  }, [flowId, toast]);
+  }, [flowId]);
+
+
+  useEffect(() => {
+    const nodesWithTypes: WorkflowNodeJson[] = nodes.map((node: Node) => {
+      const incomingEdges = edges.filter((e) => e.target === node.id);
+      const outgoingEdges = edges.filter((e) => e.source === node.id);
+  
+      let nodeType: 'start' | 'end' | 'intermediate' | 'router' ;
+      if (node.data.label === 'Router Query') nodeType = 'router';
+      else if (incomingEdges.length === 0) nodeType = 'start';
+      else if (outgoingEdges.length === 0) nodeType = 'end';
+      else nodeType = 'intermediate';
+  
+      const baseNode: WorkflowNodeJson = {
+        id: node.id,
+        label: typeof node?.data?.label === 'string' ? node?.data?.label : '',
+        type: node?.data?.type,
+        nodeType,
+        position: node.position,
+      };
+  
+      return nodeType === 'router'
+        ? { ...baseNode, routes: outgoingEdges.map((e) => e.target) }
+        : baseNode;
+    });
+  
+    const edgeList: WorkflowEdgeJson[] = edges.map((e) => ({
+      source: e.source,
+      target: e.target,
+    }));
+  
+    setWorkflowJson({
+      nodes: nodesWithTypes,
+      edges: edgeList,
+      selected: selectedNodes,
+    });
+  }, [nodes, edges, selectedNodes]);
 
   // Handler for selection change
   const onSelectionChange = useCallback((params: { nodes: FlowNode[] }) => {
@@ -334,6 +334,7 @@ const Workspace = () => {
             description: saveForm.description,
             isPublic: saveForm.isPublic,
             data: workflowJson,
+            lastRunTime: lastRunTime,
           }),
         });
       } else {
