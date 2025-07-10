@@ -469,7 +469,7 @@ const Workspace = () => {
                 <div className="w-6 h-6 bg-primary rounded flex items-center justify-center">
                   <Workflow className="w-4 h-4 text-primary-foreground" />
                 </div>
-                <span className="font-semibold">FlowCraft</span>
+                <span className="font-semibold">LangFlow</span>
               </Link>
             </div>
           </div>
