@@ -53,7 +53,7 @@ export function DashboardClient({
                 <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                   <Workflow className="w-5 h-5 text-primary-foreground" />
                 </div>
-                <span className="text-xl font-bold">FlowCraft</span>
+                <span className="text-xl font-bold">LangFlow</span>
               </Link>
               <Badge variant="secondary">Dashboard</Badge>
             </div>
