@@ -19,23 +19,53 @@ export async function POST(req: Request) {
         "svix-signature": headerPayload.get("svix-signature")!,
     }) as WebhookEvent;
 
+    console.log("Event from clerk", event.type)
+
+
 
     // Add new users to db when they sign up
     if (event.type === "user.created") {
+
+        console.log("Event Data:", event.data)
         const { id, email_addresses, first_name, last_name, image_url} = event.data;
-        await prisma.user.upsert({
-          where: { clerkId: id },
-          update: {},
-          create: {
-            clerkId: id,
-            id: id,
-            email: email_addresses[0].email_address,
-            firstName: first_name,
-            lastName: last_name,
-            imageUrl: image_url,
-          },
-        });
+
+        
+        // await prisma.user.upsert({
+        //   where: { clerkId: id },
+        //   update: {},
+        //   create: {
+        //     clerkId: id,
+        //     id: id,
+        //     email: email_addresses[0].email_address,
+        //     firstName: first_name,
+        //     lastName: last_name,
+        //     imageUrl: image_url,
+        //   },
+        // });
+
+
+
+        try {
+          await prisma.user.upsert({
+            where: { clerkId: id },
+            update: {},
+            create: {
+              clerkId: id,
+              id: id,
+              email: email_addresses[0].email_address,
+              firstName: first_name,
+              lastName: last_name,
+              imageUrl: image_url,
+            },
+          });
+          console.log("User created successfully in DB");
+        } catch (err) {
+          console.error("Prisma upsert failed", err);
+        }
+        
       }
+
+
 
 
       return new Response("OK");
