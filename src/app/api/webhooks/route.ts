@@ -22,7 +22,7 @@ export async function POST(req: Request) {
 
     // Add new users to db when they sign up
     if (event.type === "user.created") {
-        const { id, email_addresses, first_name, last_name, image_url,  } = event.data;
+        const { id, email_addresses, first_name, last_name, image_url} = event.data;
         await prisma.user.upsert({
           where: { clerkId: id },
           update: {},

@@ -6,7 +6,7 @@ export async function POST(req: Request) {
   const { userId: clerkId } = await auth();
   if (!clerkId) return new Response("Unauthorized", { status: 401 });
 
-  const { name, description, data, organizationId, isPublic, lastRunTime } = await req.json();
+  const { name, description, data, isPublic, lastRunTime } = await req.json();
 
   // Get the user from your database
   const user = await prisma.user.findUnique({
