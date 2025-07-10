@@ -13,10 +13,9 @@ const Index = () => {
   const pricingPlans = [
     {
       name: 'Starter',
-      price: 29,
+      price: 19,
       description: 'Perfect for small teams getting started',
       features: [
-        'Up to 5 team members',
         'Basic analytics',
         '10GB storage',
         'Email support',
@@ -27,10 +26,9 @@ const Index = () => {
     },
     {
       name: 'Professional',
-      price: 79,
+      price: 59,
       description: 'Ideal for growing businesses',
       features: [
-        'Up to 25 team members',
         'Advanced analytics',
         '100GB storage',
         'Priority support',
@@ -43,10 +41,9 @@ const Index = () => {
     },
     {
       name: 'Enterprise',
-      price: 199,
+      price: 159,
       description: 'For large organizations with complex needs',
-      features: [
-        'Unlimited team members',
+      features: [,
         'Enterprise analytics',
         '1TB storage',
         '24/7 dedicated support',
@@ -76,7 +73,7 @@ const Index = () => {
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <Workflow className="w-5 h-5 text-primary-foreground" />
               </div>
-              <span className="text-xl font-bold">FlowCraft</span>
+              <span className="text-xl font-bold">LangFlow</span>
             </div>
             <div className="hidden md:flex items-center space-x-8">
               <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors">Features</a>
@@ -225,7 +222,7 @@ const Index = () => {
           </div>
 
           <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-            {pricingPlans.map((plan, index) => (
+            {pricingPlans.map((plan) => (
               <Card 
                 key={plan.name} 
                 className={`relative overflow-hidden transition-all duration-300 hover:shadow-xl ${
@@ -297,7 +294,7 @@ const Index = () => {
             ))}
           </div>
 
-          <div className="text-center mt-12">
+          {/* <div className="text-center mt-12">
             <p className="text-gray-600 mb-4">Need a custom solution?</p>
             <Button 
               variant="outline" 
@@ -312,26 +309,28 @@ const Index = () => {
             >
               Contact Sales
             </Button>
-          </div>
+          </div> */}
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 px-6">
+      <section className="py-16 px-6">
         <div className="container mx-auto text-center max-w-4xl">
           <div className={`space-y-8 ${mounted ? 'animate-fade-in' : 'opacity-0'}`}>
             <h2 className="text-4xl md:text-5xl font-bold">
               Ready to automate your workflows?
             </h2>
             <p className="text-xl text-muted-foreground">
-              Join thousands of teams already using FlowCraft to streamline their processes
+              Join thousands of teams already using LangFlow to streamline their processes
             </p>
-            <Link href="/dashboard">
+            <div>
+            <Link href="/dashboard" className="my-4">
               <Button size="lg" className="text-lg px-8 py-6 group">
                 Get Started for Free
                 <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
+            </div>
           </div>
         </div>
       </section>
@@ -343,10 +342,10 @@ const Index = () => {
             <div className="w-6 h-6 bg-primary rounded flex items-center justify-center">
               <Workflow className="w-4 h-4 text-primary-foreground" />
             </div>
-            <span className="font-bold">FlowCraft</span>
+            <span className="font-bold">LangFlow</span>
           </div>
           <p className="text-muted-foreground">
-            © 2024 FlowCraft. All rights reserved.
+            © 2024 LangFlow. All rights reserved.
           </p>
         </div>
       </footer>
